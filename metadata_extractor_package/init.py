@@ -1,7 +1,8 @@
 """
-LLM Metadata Extractor v1.0.0
+LLM Metadata Extractor v1.0.1
 
-Basic dataset metadata extraction using Large Language Models.
+Enhanced dataset metadata extraction using Large Language Models with automated 
+type classification, confidence scoring, and interactive user validation.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
