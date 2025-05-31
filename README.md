@@ -20,12 +20,12 @@ A Python tool that uses Large Language Models to help analyze and annotate datas
 
 ### Basic Command Line Usage
 ```bash
-python meta_data_extractor.py --csv your_dataset.csv
+python metadata_extractor.py --csv your_dataset.csv
 ```
 
 ### Example
 ```bash
-python meta_data_extractor.py --csv datasets/Dataset.csv
+python metadata_extractor.py --csv datasets/Dataset.csv
 ```
 
 ## How It Works
