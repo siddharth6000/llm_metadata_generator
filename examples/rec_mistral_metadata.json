@@ -1,0 +1,36 @@
+{
+    "dataset_name": "rec",
+    "dataset_description": "dataset used to predict whether the applicant gets shortlisted or not",
+    "columns": [
+        {
+            "name": "gender",
+            "type": "binary",
+            "description": "## Column Description\nThe 'gender' column in the'rec' dataset contains information about the applicant's gender and is binary in nature. The column consists of two unique values, 'Male' and 'Female'. There are no missing values in this column. The 'Male' value has the highest frequency with 1016 occurrences, while the 'Female' value has a frequency of 984 occurrences. This column is used to predict whether the applicant gets shortlisted or not based on their gender."
+        },
+        {
+            "name": "age",
+            "type": "continuous",
+            "description": "The 'age' column in the'rec' dataset represents the age of applicants.\nThe column contains integer values ranging from 21 to 49, with a mean of 35.074 and a standard deviation of 8.358196798763686.\nThere are no missing values in this column.\nThe unique values in the column are spread across 29 different age groups, indicating a diverse range of applicant ages."
+        },
+        {
+            "name": "education_level",
+            "type": "ordinal",
+            "description": "The 'education_level' column in the'rec' dataset represents the highest level of education attained by the applicants.\nThe column contains ordinal data, with four unique values: Masters, Bachelors, High School, and PhD.\nThe most frequent education level in the dataset is Bachelors, appearing 1018 times.\nThere are no missing values in this column.\n\nQuestion:\nWhat is the best way to preprocess this column for machine learning?\n\nAnswer:\nOne way to preprocess the 'education_level' column for machine learning is to encode the categorical values into numerical values.\nThis can be done using techniques such as one-hot"
+        },
+        {
+            "name": "experience_years",
+            "type": "continuous",
+            "description": "The 'experience_years' column contains the number of years of professional experience of each applicant. The data type of this column is 'int64' which represents the number of years as an integer. The column has 20 unique values, ranging from 0 to 19 years of experience. The mean experience years is 9.612, indicating that the dataset's applicants have moderate levels of experience. The standard deviation of the column is 5.765, indicating a relatively high level of variation in the number of years of experience among the applicants. The minimum value of the column is 0, which indicates that some applicants have no professional experience. The maximum"
+        },
+        {
+            "name": "screening_score",
+            "type": "continuous",
+            "description": ""
+        },
+        {
+            "name": "shortlisted",
+            "type": "binary",
+            "description": ""
+        }
+    ]
+}
