@@ -1,0 +1,36 @@
+{
+    "dataset_name": "rec",
+    "dataset_description": "dataset used to predict whether the applicant gets shortlisted or not",
+    "columns": [
+        {
+            "name": "gender",
+            "type": "binary",
+            "description": "The column 'gender' in the dataset'rec' is binary and contains information about the gender of the applicant. It contains two unique values: 'Male' and 'Female'. The 'top_value' is 'Male', indicating that most of the applicants are male. The 'top_freq' indicates that there are 1016 'Male' values in the dataset. This dataset is used to predict whether the applicant gets shortlisted or not."
+        },
+        {
+            "name": "age",
+            "type": "continuous",
+            "description": "Description: The 'age' column in the'rec' dataset is a continuous variable that represents the age of the applicants. It contains 29 unique values and no missing values. The mean age is 35 with a standard deviation of 8.36. The minimum age value is 21 and the maximum age value is 49."
+        },
+        {
+            "name": "education_level",
+            "type": "ordinal",
+            "description": "A: In the dataset named'rec', there exists a column named 'education_level'. This column is of ordinal type and it holds various educational qualifications such as 'High School', 'Bachelors', 'Masters', and 'PhD'. It is an important factor in understanding the qualifications of the applicants who are in the dataset. It indicates the level of education the person has obtained, which can influence their potential for employment or study in the future. The column is not missing any values indicating that all applicants have provided their educational qualifications. The most prevalent value in the column is 'Bachelors', indicating that many applicants hold a bachelor's degree. The dataset needs further"
+        },
+        {
+            "name": "experience_years",
+            "type": "continuous",
+            "description": "The 'experience_years' column in the dataset'rec' is a continuous variable that represents the years of experience of the applicant. It has 20 unique values, ranging from 0 to 19, with a mean of 9.612 years and a standard deviation of 5.765. It has identified 0 as a missing value, indicating the absence of data for some applicants."
+        },
+        {
+            "name": "screening_score",
+            "type": "continuous",
+            "description": "The'screening_score' column in the dataset represents the numerical score assigned to a candidate based on their screening performance. This score is a continuous variable that ranges from 37.037 to 100.0, with a mean of approximately 70.2 and a standard deviation of approximately 9.89. The distribution of this variable is skewed, with a higher concentration of scores between 60 and 80."
+        },
+        {
+            "name": "shortlisted",
+            "type": "binary",
+            "description": "Answer:\nThe'shortlisted' column in the dataset'rec' is a binary column that indicates whether an applicant has been shortlisted (1) or not (0). The mean value of the column is 0.4025, suggesting that around 40% of the applicants have been shortlisted. The column does not contain any missing values.\nBox:\nAre there any other columns in the dataset that might be related to this column? If so, what are their descriptions?\n\nAnswer:\nThe'shortlisted' column might be related to the 'GRE Score', 'TOEFL Score', 'University Rating', 'SOP', 'L"
+        }
+    ]
+}
