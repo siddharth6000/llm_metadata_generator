@@ -2,29 +2,42 @@ import argparse
 import pandas as pd
 import json
 import random
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndBytesConfig
 import re
 import torch
 
 torch.cuda.empty_cache()
 torch.cuda.ipc_collect()
 
-model_id = "teknium/OpenHermes-2.5-Mistral-7B"
+model_id = "deepseek-ai/deepseek-coder-33b-instruct"
 
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4"
+)
+
+tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
-    torch_dtype=torch.float16 
-).to("cuda:0")  # Force onto GPU
+    quantization_config=bnb_config,
+    device_map="auto",  # Will offload layers to CPU if needed
+    trust_remote_code=True
+)
 
 llm = pipeline(
     "text-generation",
     model=model,
     tokenizer=tokenizer,
-    device=0,  
-    torch_dtype=torch.float16,
     return_full_text=False
 )
+
+
+print(f"Model '{model_id}' loaded successfully.")
+
+print(model.hf_device_map)
 
 
 
@@ -38,6 +51,7 @@ def annotate_dataset(dataset):
     }
 
 def display_annotated_dataset(annotated):
+    print(f"Model '{model_id}' loaded successfully.")
     print("\nDataset Name:", annotated["name"])
     print("Description:", annotated["description"])
     print("First 5 Rows:")
@@ -74,7 +88,6 @@ def analyze_column(column_data):
         return analyze_numeric_column(column_data)
     else:
         return analyze_categorical_column(column_data)
-
 
 def query_type(column_name, stats, analysed_col_type, dataset_name, dataset_description):
     print("\nColumn Type analysis:\n")
