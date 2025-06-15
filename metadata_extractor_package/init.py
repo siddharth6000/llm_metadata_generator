@@ -1,8 +1,8 @@
 """
-LLM Metadata Extractor v1.0.2
+LLM Metadata Extractor v1.0.3
 
-Enhanced dataset metadata extraction using DeepSeek Coder 33B with 4-bit quantization
-for memory-efficient LLM-powered analysis and automated type classification.
+Enhanced dataset metadata extraction with comprehensive prompting, context-aware analysis,
+and statistical enrichment for production-ready metadata generation.
 """
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"

@@ -5,6 +5,7 @@ import random
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndBytesConfig
 import re
 import torch
+import numpy as np
 
 torch.cuda.empty_cache()
 torch.cuda.ipc_collect()
@@ -89,7 +90,8 @@ def analyze_column(column_data):
     else:
         return analyze_categorical_column(column_data)
 
-def query_type(column_name, stats, analysed_col_type, dataset_name, dataset_description):
+
+def query_type(column_name, stats, analysed_col_type, dataset_name, dataset_description, dataset_sample_str):
     print("\nColumn Type analysis:\n")
 
     user_prompt = (
@@ -99,23 +101,54 @@ def query_type(column_name, stats, analysed_col_type, dataset_name, dataset_desc
     "You MUST include all keys, even if the confidence is 0.\n"
     "Do not include any explanation.\n\n"
 
-    "Example 1:\n"
+    "Example 1 (Binary):\n"
     "Column Name: gender\n"
     "Stats:\n"
     "{ 'type': 'object', 'unique_values': 2, 'sample_unique_values': ['Male', 'Female'], 'missing_values': 0 }\n"
     "Output:\n"
     "{\n  \"binary\": 1.0,\n  \"categorical\": 0.8,\n  \"ordinal\": 0.0,\n  \"continuous\": 0.0,\n  \"identifier\": 0.0,\n  \"free_text\": 0.0\n}\n\n"
 
-    "Example 2:\n"
+    "Example 2 (Categorical):\n"
+    "Column Name: payment_method\n"
+    "Stats:\n"
+    "{ 'type': 'object', 'unique_values': 4, 'sample_unique_values': ['Credit Card', 'PayPal', 'Bank Transfer', 'Cash'], 'missing_values': 5 }\n"
+    "Output:\n"
+    "{\n  \"binary\": 0.0,\n  \"categorical\": 1.0,\n  \"ordinal\": 0.0,\n  \"continuous\": 0.0,\n  \"identifier\": 0.0,\n  \"free_text\": 0.0\n}\n\n"
+
+    "Example 3 (Ordinal):\n"
+    "Column Name: satisfaction_level\n"
+    "Stats:\n"
+    "{ 'type': 'object', 'unique_values': 4, 'sample_unique_values': ['Low', 'Medium', 'High', 'Very High'], 'missing_values': 3 }\n"
+    "Output:\n"
+    "{\n  \"binary\": 0.0,\n  \"categorical\": 0.5,\n  \"ordinal\": 1.0,\n  \"continuous\": 0.0,\n  \"identifier\": 0.0,\n  \"free_text\": 0.0\n}\n\n"
+
+    "Example 4 (Continuous):\n"
     "Column Name: age\n"
     "Stats:\n"
     "{ 'type': 'int64', 'unique_values': 43, 'mean': 36.7, 'std': 4.5, 'min': 21, 'max': 60, 'missing_values': 0 }\n"
     "Output:\n"
     "{\n  \"binary\": 0.0,\n  \"categorical\": 0.0,\n  \"ordinal\": 0.0,\n  \"continuous\": 1.0,\n  \"identifier\": 0.0,\n  \"free_text\": 0.0\n}\n\n"
 
+    "Example 5 (Identifier):\n"
+    "Column Name: CustomerId\n"
+    "Stats:\n"
+    "{ 'type': 'int64', 'unique_values': 10000, 'sample_unique_values': [15668009, 15732778, 15605264, 15752809], 'missing_values': 0, 'mean': 15690940.57, 'std': 71936.18, 'min': 15565701, 'max': 15815690 }\n"
+    "Output:\n"
+    "{\n  \"binary\": 0.0,\n  \"categorical\": 0.0,\n  \"ordinal\": 0.0,\n  \"continuous\": 0.9,\n  \"identifier\": 1.0,\n  \"free_text\": 0.0\n}\n\n"
+
+    "Example 6 (Free Text):\n"
+    "Column Name: customer_comments\n"
+    "Stats:\n"
+    "{ 'type': 'object', 'unique_values': 9572, 'sample_unique_values': ['Loved the product, will buy again.', 'Service was poor and delivery was late.', 'Excellent value for money!', 'Would not recommend.'], 'missing_values': 412 }\n"
+    "Output:\n"
+    "{\n  \"binary\": 0.0,\n  \"categorical\": 0.0,\n  \"ordinal\": 0.0,\n  \"continuous\": 0.0,\n  \"identifier\": 0.0,\n  \"free_text\": 1.0\n}\n\n"
+
     "Now analyze the following column:\n"
-    f"Column Name: {column_name}\n"
+    f"Dataset name:\n{dataset_name}\n"
     f"Dataset description:\n{dataset_description}\n"
+    f"Dataset Sample (first 5 rows):\n{dataset_sample_str}\n\n"
+    f"Column Name: {column_name}\n"
+    f"Probable column type:\n{analysed_col_type}\n"
     f"Column statistics:\n{json.dumps(stats, indent=2, default=str)}\n\n"
     "Output:"
 )
@@ -147,60 +180,101 @@ def parse_type_from_llm_response(response_text, column_name):
         return user_input.lower() if user_input else top_type
 
     except json.JSONDecodeError:
-        print("⚠️ Warning: Could not parse LLM response as JSON.")
+        print("Warning: Could not parse LLM response as JSON.")
         print(f"Response text was:\n{response_text}")
         user_input = input(f"\nPlease manually enter the type for the column '{column_name}': ").strip()
         return user_input.lower()
 
 
-def query_desc(column_name, stats, col_type, dataset_name, dataset_description):
+def query_desc(column_name, stats, col_type, dataset_name, dataset_description, dataset_sample_str):
     print("\nColumn Description analysis:\n")
 
-    stats_json = json.dumps(stats, indent=2, default=str)
+    context = {
+        "column_name": column_name,
+        "inferred_type": col_type,
+        "notes": (
+            "This column has been automatically identified as '{}' type. "
+            "Its values appear to represent a specific real-world concept or attribute relevant to the dataset.".format(col_type)
+        )
+    }
 
     user_prompt = (
-        f"You are analyzing a column named '{column_name}' in a dataset titled '{dataset_name}'.\n"
-        f"Dataset description: {dataset_description}\n"
-        f"Column type: {col_type}\n"
-        f"Column statistics: {stats_json}\n\n"
-        "Based on the information above, write a concise description of the column suitable for metadata documentation.\n"
-        "The description must be written in natural language and should not exceed 150 words.\n"
-        "Do not include code, formatting syntax, or technical instructions—only clean natural language output."
-    )
+    "You are generating metadata documentation for a structured dataset. "
+    "Your task is to write a natural-language description of a single column that will appear in a metadata catalog.\n\n"
 
-    #print("Prompt: ", user_prompt)
+    "Instructions:\n"
+    "- Write a clear and informative paragraph (up to 250 words).\n"
+    "- Focus on what the column represents in real-world terms.\n"
+    "- Do NOT mention specific values from the column (e.g., do not say '0 means female').\n"
+    "- Explain how the column may be used in data analysis, modeling, or decision-making.\n"
+    "- Use natural, accessible language suitable for analysts, researchers, or business users.\n"
+    "- Base your answer on the dataset's description, a sample of the data, and the statistical summary of the column.\n\n"
+
+    "Examples:\n\n"
+
+    "Example 1:\n"
+    "Dataset Name: Recruitment Records\n"
+    "Dataset Description: This dataset contains information about job applicants and their screening outcomes.\n"
+    "Column Name: education_level\n"
+    "Column Type: categorical\n"
+    "Column Stats:\n"
+    "{ 'type': 'object', 'unique_values': 4, 'missing_values': 12 }\n"
+    "Output:\n"
+    "\"This column captures the highest educational qualification listed by each applicant. It generally includes standardized education levels like diplomas, bachelor's, or postgraduate degrees. It helps in assessing whether applicants meet role requirements and supports analysis of educational trends across applicants, such as qualifications relative to job outcomes or demographic breakdowns.\"\n\n"
+
+    "Example 2:\n"
+    "Dataset Name: E-Commerce Transactions\n"
+    "Dataset Description: Logs of online purchases made through a retail platform.\n"
+    "Column Name: payment_status\n"
+    "Column Type: categorical\n"
+    "Column Stats:\n"
+    "{ 'type': 'object', 'unique_values': 3, 'missing_values': 0 }\n"
+    "Output:\n"
+    "\"This column indicates the payment status of each transaction. It typically reflects whether an order was paid, pending, or failed. This information is important for understanding transaction flow, identifying incomplete checkouts, and analyzing overall revenue patterns.\"\n\n"
+
+    f"Dataset Sample (first 5 rows):\n{dataset_sample_str}\n\n"
+    f"Now generate a description for the following column:\n"
+    f"Dataset Name: {dataset_name}\n"
+    f"Dataset Description: {dataset_description}\n"
+    f"Column Name: {column_name}\n"
+    f"Column Type: {col_type}\n"
+    f"Column Stats:\n{json.dumps(stats, indent=2, default=str)}\n\n"
+    "Write the column description below:"
+)
+
+    #print("User Prompt: ", user_prompt)
 
     try:
-        result = llm(user_prompt, max_new_tokens=150, do_sample=True, temperature=0.7)
+        result = llm(user_prompt, max_new_tokens=300, do_sample=True, temperature=0.7)
         response = result[0]["generated_text"].strip()
-
         print("[LLM Response]\n", response)
         return response
     except Exception as e:
-        print("⚠️ LLM description generation failed:", str(e))
+        print("LLM description generation failed:", str(e))
         return "[Failed to generate description]"
 
 
 
-def get_column_type(column_name, stats, analysed_col_type, dataset_name, dataset_description):
+
+
+def get_column_type(column_name, stats, analysed_col_type, dataset_name, dataset_description, dataset_sample_str):
     print(f"\nColumn: {column_name}")
     for stat, value in stats.items():
         print(f"{stat.capitalize().replace('_', ' ')}: {value}")
 
     # This will now include user confirmation internally
-    col_type = query_type(column_name, stats, analysed_col_type, dataset_name, dataset_description)
+    col_type = query_type(column_name, stats, analysed_col_type, dataset_name, dataset_description, dataset_sample_str)
     print(f"Final column type for '{column_name}': {col_type}")
 
     return col_type
 
 
-
-def get_column_desc(column_name, stats, col_type, dataset_name, dataset_description):
+def get_column_desc(column_name, stats, col_type, dataset_name, dataset_description, dataset_sample_str):
     print(f"\nColumn: {column_name}")
     for stat, value in stats.items():
         print(f"{stat.capitalize().replace('_', ' ')}: {value}")
 
-    llm_description = query_desc(column_name, stats, col_type, dataset_name, dataset_description)
+    llm_description = query_desc(column_name, stats, col_type, dataset_name, dataset_description, dataset_sample_str)
 
     user_input = input(f"Press Enter to accept the description or type your own for '{column_name}': ").strip()
     description = user_input if user_input else llm_description
@@ -238,32 +312,67 @@ def detect_column_type(series: pd.Series) -> str:
     return "categorical" if dtype == object else "continuous"
 
 def save_metadata(dataset_name, dataset_description, column_descriptions):
+    def make_json_serializable(obj):
+        if isinstance(obj, (np.integer, np.int64, np.int32)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float64, np.float32)):
+            return float(obj)
+        elif isinstance(obj, (np.ndarray,)):
+            return obj.tolist()
+        elif isinstance(obj, pd.Timestamp):
+            return obj.isoformat()
+        return obj
+
     output = {
         "dataset_name": dataset_name,
         "dataset_description": dataset_description,
-        "columns": column_descriptions
+        "columns": [
+            {k: make_json_serializable(v) for k, v in col.items()}
+            for col in column_descriptions
+        ]
     }
+
     filename = f"{dataset_name.replace(' ', '_').lower()}_metadata.json"
     with open(filename, "w") as f:
         json.dump(output, f, indent=4)
+
     print(f"\nMetadata saved to '{filename}'")
+
 
 def main(dataset):
     annotated = annotate_dataset(dataset)
     display_annotated_dataset(annotated)
+    dataset_sample_str = dataset.head().to_string(index=False)
     column_descriptions = []
     print("\nColumn-wise Analysis:\n")
+
     for column in dataset.columns:
         stats = analyze_column(dataset[column])
         analysed_col_type = detect_column_type(dataset[column])
-        col_type = get_column_type(column, stats, analysed_col_type, annotated["name"], annotated["description"])
-        description = get_column_desc(column, stats, col_type, annotated["name"], annotated["description"])
-        column_descriptions.append({
+        col_type = get_column_type(column, stats, analysed_col_type, annotated["name"], annotated["description"], dataset_sample_str)
+        description = get_column_desc(column, stats, col_type, annotated["name"], annotated["description"], dataset_sample_str)
+
+        column_entry = {
             "name": column,
             "type": col_type,
-            "description": description
-        })
+            "description": description,
+            "missing_values": stats.get("missing_values", 0),
+            "unique_values": stats.get("unique_values", 0)
+        }
+
+        if col_type == "continuous":
+            column_entry.update({
+                "mean": stats.get("mean", None),
+                "std": stats.get("std", None),
+                "min": stats.get("min", None),
+                "max": stats.get("max", None)
+            })
+
+        column_descriptions.append(column_entry)
+
     save_metadata(annotated["name"], annotated["description"], column_descriptions)
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Annotate a dataset with name and description.")

@@ -1,8 +1,47 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
 ## [Unreleased]
+
+## v1.0.3
+
+### Added
+- Comprehensive LLM prompting with 6 detailed examples covering all semantic types (binary, categorical, ordinal, continuous, identifier, free_text)
+- Context-aware analysis with dataset samples and descriptions provided to LLM
+- Statistical metadata enrichment in JSON output with missing values, unique counts, and statistical measures
+- Enhanced prompt engineering with real-world examples for each semantic type
+- JSON serialization handling for NumPy data types and pandas Timestamps
+- Detailed dataset context including sample data in LLM prompts for better accuracy
+- Enhanced description generation with improved prompt templates and examples
+- Extended metadata output format with type-specific statistical information
+
+### Changed
+- Enhanced `query_type()` function with comprehensive examples for all 6 semantic types
+- Improved `query_desc()` function with better prompt engineering and context awareness
+- Updated metadata output to include statistical enrichment for continuous variables
+- Enhanced JSON serialization with robust handling of NumPy and pandas data types
+- Improved LLM prompting with dataset context and sample data inclusion
+- Enhanced user prompts with more detailed statistical information display
+- Better error handling in JSON serialization with custom conversion functions
+
+### Fixed
+- JSON serialization issues with NumPy integer and floating-point types
+- pandas Timestamp serialization in metadata output
+- Array and complex data type handling in JSON export
+- Improved robustness in statistical data conversion and export
+
+### Technical Improvements
+- Added `make_json_serializable()` function for robust data type conversion
+- Enhanced prompt templates with comprehensive examples for better LLM guidance
+- Improved context passing to LLM with dataset samples and descriptions
+- Enhanced statistical metadata extraction and enrichment
+- Better handling of continuous vs categorical variable statistics in output
+- Improved data type detection and statistical summary integration
+
+### Performance
+- Maintained 4-bit quantization for memory efficiency
+- Enhanced LLM accuracy through improved prompting without performance degradation
+- Better statistical computation efficiency with optimized data handling
+- Improved JSON export performance with streamlined serialization
 
 ## v1.0.2
 
