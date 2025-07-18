@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+## v1.1.0
+
+### Added
+- Complete Flask web application with modern responsive interface for dataset metadata extraction
+- Interactive HTML interface with step-by-step guided workflow from upload to download
+- Multi-step workflow including upload, dataset information, column analysis, and results with progress tracking
+- Real-time AI integration with three separate LLM calls integrated into web interface
+- Session management with in-memory storage for multi-step workflows
+- File upload handling with drag-and-drop CSV upload supporting files up to 16MB
+- Progress visualization with real-time progress bars and loading indicators
+- Download functionality for direct JSON metadata export from browser
+- Web API endpoints for upload, analysis, confirmation, and metadata export
+- Interactive column analysis cards with comprehensive statistics display and confidence bars
+- Interactive description editing with real-time updates triggering type reclassification
+- Visual confidence scoring with color-coded confidence bars for type classifications
+- Professional export functionality with structured JSON download and clean metadata format
+
+### Changed
+- Modularized architecture separating web interface from core analysis engine
+- Enhanced three-stage LLM process with improved workflow separating description and type analysis
+- Enhanced error handling with better JSON serialization and error recovery
+- Improved session management with temporary file handling and cleanup
+- Remote LLM API integration with enhanced support for ngrok tunnels and remote endpoints
+
+### Technical Improvements
+- Added web-friendly functions `query_llm_for_description()` and `query_llm_for_type_classification()` for Flask integration
+- Enhanced `make_json_serializable()` function for robust web API responses
+- Robust error recovery with fallback mechanisms for failed LLM calls
+- Added `test_llm_connection()` function for endpoint validation
+- Enhanced statistical analysis display optimized for web interface presentation
+- Dual interface support with both web and CLI interfaces sharing the same core engine
+- Memory management with proper session cleanup and resource management
+- File validation with CSV format validation and size limits
+- Security headers with basic security measures for web interface
+- Enhanced configuration management with centralized LLM API configuration
+- Comprehensive error handling throughout the application with consistent API response structures
+
+### Performance
+- Maintained efficient LLM processing with same core analysis engine
+- Optimized web interface for responsive user experience
+- Enhanced session handling for multiple concurrent users
+- Improved file processing with efficient temporary storage
+
 ## v1.0.3
 
 ### Added

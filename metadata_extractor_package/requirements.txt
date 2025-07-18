@@ -1,0 +1,25 @@
+# LLM Metadata Extractor v1.1.0 Requirements
+
+# Web Framework (NEW in v1.1.0)
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Data Processing
+pandas==2.1.4
+numpy==1.24.3
+
+# HTTP Requests (for LLM API calls)
+requests==2.31.0
+
+# AI/ML Framework (for local LLM support)
+transformers==4.36.2
+torch==2.1.2
+
+# Optional: GPU Memory Optimization (if using local LLMs)
+# bitsandbytes>=0.39.0
+# accelerate>=0.20.0
+
+# Development Dependencies (optional)
+# pytest>=7.0.0
+# black>=22.0.0
+# flake8>=4.0.0

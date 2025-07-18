@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Metadata Extraction Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .step {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .upload-zone {
+            border: 3px dashed #3498db;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover {
+            border-color: #2980b9;
+            background: #e3f2fd;
+            transform: translateY(-2px);
+        }
+
+        .upload-zone.dragover {
+            border-color: #27ae60;
+            background: #d4edda;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60 0%, #219a52 100%);
+        }
+
+        .data-preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .data-table th {
+            background: #e9ecef;
+            font-weight: 600;
+        }
+
+        .column-analysis {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 5px solid #3498db;
+        }
+
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .column-name {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-top: 5px;
+        }
+
+        .confidence-bars {
+            margin: 20px 0;
+        }
+
+        .confidence-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .confidence-label {
+            width: 120px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .confidence-bar {
+            flex: 1;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin: 0 10px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            transition: width 0.5s ease;
+        }
+
+        .confidence-value {
+            width: 50px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            transition: width 0.3s ease;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .sample-values {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .column-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        .column-selector-container {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .column-selector {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 5px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .column-item {
+            min-width: 120px;
+            height: 60px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+            position: relative;
+        }
+
+        .column-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .column-item.current {
+            background: #fff3cd;
+            border-color: #ffc107;
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.3);
+        }
+
+        .column-item.completed {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .column-item.completed::after {
+            content: "✓";
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            color: #28a745;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .column-item.pending {
+            background: #f8f9fa;
+            border-color: #e0e0e0;
+            color: #6c757d;
+        }
+
+        .column-name {
+            font-weight: 600;
+            font-size: 12px;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100px;
+        }
+
+        .column-number {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .column-navigation-bottom {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+        }
+        .description-section {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #3498db;
+        }
+
+        .type-section {
+            background: #f0f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Dataset Metadata Annotation Tool</h1>
+            <p>Upload your CSV file and generate comprehensive metadata with AI assistance</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Step 1: File Upload -->
+            <div class="step active" id="step1">
+                <h2>Step 1: Upload Your Dataset</h2>
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📊</div>
+                    <h3>Drop your CSV file here or click to browse</h3>
+                    <p>Supported format: CSV files</p>
+                    <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                </div>
+                <div id="fileInfo" class="hidden">
+                    <h3>File Information</h3>
+                    <p><strong>Name:</strong> <span id="fileName"></span></p>
+                    <p><strong>Rows:</strong> <span id="fileRows"></span></p>
+                    <p><strong>Columns:</strong> <span id="fileCols"></span></p>
+                </div>
+                <div id="uploadError" class="alert alert-error hidden"></div>
+            </div>
+
+            <!-- Step 2: Dataset Information -->
+            <div class="step" id="step2">
+                <h2>Step 2: Dataset Information</h2>
+                <div class="form-group">
+                    <label for="datasetName">Dataset Name</label>
+                    <input type="text" id="datasetName" placeholder="Enter a descriptive name for your dataset" required>
+                </div>
+                <div class="form-group">
+                    <label for="datasetDescription">Dataset Description</label>
+                    <textarea id="datasetDescription" rows="4" placeholder="Describe what this dataset contains and its purpose" required></textarea>
+                </div>
+                <div class="data-preview" id="dataPreview">
+                    <h3>Data Preview (First 5 rows)</h3>
+                    <div id="previewTable"></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Column Analysis -->
+            <div class="step" id="step3">
+                <h2>Step 3: Column Analysis</h2>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+
+                <!-- Column Progress Info with Horizontal Column Selector -->
+                <div class="column-info" id="columnInfo" style="display: none;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <span id="columnProgress" style="font-size: 1.2rem; font-weight: 600; color: #2c3e50;">Column 1 of 6</span>
+                    </div>
+
+                    <!-- Horizontal Column Selector -->
+                    <div class="column-selector-container">
+                        <div class="column-selector" id="columnSelector">
+                            <!-- Column items will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="columnAnalysis"></div>
+                <div id="analysisLoading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Analyzing column with AI...</p>
+                </div>
+
+                <!-- Column Navigation Bottom Only -->
+                <div class="column-navigation-bottom" id="columnNavigationBottom" style="display: none; margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <button class="btn btn-secondary" onclick="navigateToPreviousColumn()" id="prevColumnBtn">← Previous Column</button>
+                        <button class="btn btn-success" onclick="finishAnalysis()" id="finishBtn" style="display: none;">Finish Analysis</button>
+                        <button class="btn" onclick="navigateToNextColumn()" id="nextColBtn">Next Column →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Results -->
+            <div class="step" id="step4">
+                <h2>Step 4: Generated Metadata</h2>
+                <div class="alert alert-success">
+                    ✅ Metadata generation completed successfully!
+                </div>
+                <div id="metadataResults"></div>
+                <button class="btn btn-success" id="downloadBtn">Download Metadata JSON</button>
+            </div>
+
+            <!-- Navigation -->
+            <div class="navigation">
+                <button class="btn btn-secondary" id="prevBtn" onclick="previousStep()" style="display: none;">Previous</button>
+                <button class="btn" id="nextBtn" onclick="nextStep()">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let sessionId = null;
+        let fileData = null;
+        let currentColumnIndex = 0;
+        let columns = [];
+        let processedColumns = [];
+        let columnAnalysisData = []; // Store analysis data for each column
+
+        // File upload handling
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', handleDragOver);
+        uploadZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length > 0) {
+                uploadFile(e.target.files[0]);
+            }
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    sessionId = data.session_id;
+                    fileData = data;
+                    columns = data.column_names;
+                    displayFileInfo();
+                    document.getElementById('nextBtn').disabled = false;
+                }
+            })
+            .catch(error => {
+                showError('Error uploading file: ' + error.message);
+            });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('uploadError');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function displayFileInfo() {
+            document.getElementById('fileName').textContent = fileData.filename;
+            document.getElementById('fileRows').textContent = fileData.rows;
+            document.getElementById('fileCols').textContent = fileData.columns;
+            document.getElementById('fileInfo').classList.remove('hidden');
+            document.getElementById('uploadError').classList.add('hidden');
+        }
+
+        function showStep(step) {
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`step${step}`).classList.add('active');
+
+            document.getElementById('prevBtn').style.display = step > 1 ? 'block' : 'none';
+            document.getElementById('nextBtn').style.display = step < 4 ? 'block' : 'none';
+
+            if (step === 2) {
+                displayDataPreview();
+            } else if (step === 3) {
+                startColumnAnalysis();
+            }
+        }
+
+        function nextStep() {
+            if (currentStep === 1 && !sessionId) {
+                alert('Please upload a CSV file first.');
+                return;
+            }
+
+            if (currentStep === 2) {
+                const name = document.getElementById('datasetName').value.trim();
+                const description = document.getElementById('datasetDescription').value.trim();
+                if (!name || !description) {
+                    alert('Please fill in both dataset name and description.');
+                    return;
+                }
+                saveDatasetInfo(name, description);
+            }
+
+            if (currentStep < 4) {
+                currentStep++;
+                showStep(currentStep);
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+
+        function saveDatasetInfo(name, description) {
+            fetch('/set_dataset_info', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    name: name,
+                    description: description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error saving dataset info: ' + data.error);
+                }
+            });
+        }
+
+        function displayDataPreview() {
+            if (!fileData.preview) return;
+
+            const preview = fileData.preview.slice(0, 5);
+            const columnNames = fileData.column_names;
+
+            let html = '<table class="data-table"><thead><tr>';
+            columnNames.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            preview.forEach(row => {
+                html += '<tr>';
+                columnNames.forEach(col => {
+                    const value = row[col];
+                    html += `<td>${value !== undefined && value !== null ? value : ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+
+            document.getElementById('previewTable').innerHTML = html;
+        }
+
+        function startColumnAnalysis() {
+            currentColumnIndex = 0;
+            processedColumns = [];
+            columnAnalysisData = []; // Reset analysis data
+            setupColumnNavigation();
+            analyzeCurrentColumn();
+        }
+
+        function setupColumnNavigation() {
+            // Initialize analysis data array
+            for (let i = 0; i < columns.length; i++) {
+                columnAnalysisData.push({
+                    analyzed: false,
+                    data: null,
+                    description: '',
+                    type: ''
+                });
+            }
+
+            // Create horizontal column selector
+            createColumnSelector();
+
+            // Show navigation
+            document.getElementById('columnInfo').style.display = 'block';
+            document.getElementById('columnNavigationBottom').style.display = 'block';
+
+            updateNavigationState();
+        }
+
+        function createColumnSelector() {
+            const selector = document.getElementById('columnSelector');
+            selector.innerHTML = '';
+
+            columns.forEach((col, index) => {
+                const columnItem = document.createElement('div');
+                columnItem.className = 'column-item pending';
+                columnItem.onclick = () => jumpToColumn(index);
+
+                columnItem.innerHTML = `
+                    <div class="column-name">${col}</div>
+                    <div class="column-number">Col ${index + 1}</div>
+                `;
+
+                selector.appendChild(columnItem);
+            });
+        }
+
+        function updateColumnSelector() {
+            const columnItems = document.querySelectorAll('.column-item');
+
+            columnItems.forEach((item, index) => {
+                // Remove all status classes
+                item.classList.remove('current', 'completed', 'pending');
+
+                if (index === currentColumnIndex) {
+                    // Current column - yellow
+                    item.classList.add('current');
+                } else if (columnAnalysisData[index].analyzed) {
+                    // Completed column - green
+                    item.classList.add('completed');
+                } else {
+                    // Pending column - gray
+                    item.classList.add('pending');
+                }
+            });
+        }
+
+        function updateNavigationState() {
+            const progress = ((currentColumnIndex + 1) / columns.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('columnProgress').textContent = `Column ${currentColumnIndex + 1} of ${columns.length}`;
+
+            // Update column selector visual states
+            updateColumnSelector();
+
+            // Update button states
+            const prevBtn = document.getElementById('prevColumnBtn');
+            const nextBtn = document.getElementById('nextColBtn');
+            const finishBtn = document.getElementById('finishBtn');
+
+            prevBtn.disabled = currentColumnIndex === 0;
+
+            if (currentColumnIndex === columns.length - 1) {
+                nextBtn.style.display = 'none';
+                finishBtn.style.display = 'block';
+            } else {
+                nextBtn.style.display = 'block';
+                finishBtn.style.display = 'none';
+            }
+        }
+
+        function navigateToPreviousColumn() {
+            if (currentColumnIndex > 0) {
+                saveCurrentColumnState();
+                currentColumnIndex--;
+                updateNavigationState();
+                loadOrAnalyzeColumn();
+            }
+        }
+
+        function navigateToNextColumn() {
+            if (currentColumnIndex < columns.length - 1) {
+                saveCurrentColumnState();
+                currentColumnIndex++;
+                updateNavigationState();
+                loadOrAnalyzeColumn();
+            }
+        }
+
+        function jumpToColumn(selectedIndex) {
+            if (selectedIndex !== currentColumnIndex) {
+                saveCurrentColumnState();
+                currentColumnIndex = selectedIndex;
+                updateNavigationState();
+                loadOrAnalyzeColumn();
+            }
+        }
+
+        function saveCurrentColumnState() {
+            // Save current column's description and type if they exist
+            const descTextarea = document.getElementById(`columnDesc${currentColumnIndex}`);
+            const typeSelect = document.getElementById(`columnType${currentColumnIndex}`);
+
+            if (descTextarea && typeSelect) {
+                columnAnalysisData[currentColumnIndex].description = descTextarea.value;
+                columnAnalysisData[currentColumnIndex].type = typeSelect.value;
+            }
+        }
+
+        function loadOrAnalyzeColumn() {
+            const columnData = columnAnalysisData[currentColumnIndex];
+
+            if (columnData.analyzed && columnData.data) {
+                // Column was already analyzed, load saved state
+                displayColumnAnalysis(columnData.data);
+
+                // Restore saved description and type
+                setTimeout(() => {
+                    const descTextarea = document.getElementById(`columnDesc${currentColumnIndex}`);
+                    const typeSelect = document.getElementById(`columnType${currentColumnIndex}`);
+
+                    if (descTextarea && columnData.description) {
+                        descTextarea.value = columnData.description;
+                    }
+                    if (typeSelect && columnData.type) {
+                        typeSelect.value = columnData.type;
+                    }
+                }, 100);
+            } else {
+                // Column not analyzed yet, analyze it
+                analyzeCurrentColumn();
+            }
+        }
+
+        function analyzeCurrentColumn() {
+            const columnName = columns[currentColumnIndex];
+            document.getElementById('analysisLoading').classList.remove('hidden');
+
+            // Analyze column with backend
+            fetch('/analyze_column', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    column_name: columnName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('analysisLoading').classList.add('hidden');
+                if (data.error) {
+                    alert('Error analyzing column: ' + data.error);
+                } else {
+                    // Save analysis data
+                    columnAnalysisData[currentColumnIndex].analyzed = true;
+                    columnAnalysisData[currentColumnIndex].data = data;
+                    columnAnalysisData[currentColumnIndex].description = data.suggested_description;
+                    columnAnalysisData[currentColumnIndex].type = data.suggested_type;
+
+                    // Update visual state
+                    updateColumnSelector();
+
+                    displayColumnAnalysis(data);
+                }
+            })
+            .catch(error => {
+                document.getElementById('analysisLoading').classList.add('hidden');
+                alert('Error analyzing column: ' + error.message);
+            });
+        }
+
+        function finishAnalysis() {
+            // Save current column state before finishing
+            saveCurrentColumnState();
+
+            // Confirm all columns with backend
+            confirmAllColumns().then(() => {
+                currentStep = 4;
+                showStep(currentStep);
+            });
+        }
+
+        function confirmAllColumns() {
+            const promises = [];
+
+            for (let i = 0; i < columns.length; i++) {
+                const columnData = columnAnalysisData[i];
+                if (columnData.analyzed) {
+                    const promise = fetch('/confirm_column', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            session_id: sessionId,
+                            column_name: columns[i],
+                            type: columnData.type,
+                            description: columnData.description
+                        })
+                    });
+                    promises.push(promise);
+                }
+            }
+
+            return Promise.all(promises).then(() => {
+                generateFinalMetadata();
+            });
+        }
+
+        function displayColumnAnalysis(data) {
+            const columnName = data.column_name;
+            const stats = data.stats;
+            const suggestedType = data.suggested_type;
+            const suggestedDescription = data.suggested_description;
+
+            const html = `
+                <div class="column-analysis">
+                    <div class="column-header">
+                        <div class="column-name">${columnName} (${currentColumnIndex + 1}/${columns.length})</div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Data Type</div>
+                            <div class="stat-value">${stats.type}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Unique Values</div>
+                            <div class="stat-value">${stats.unique_values}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Missing Values</div>
+                            <div class="stat-value">${stats.missing_values}</div>
+                        </div>
+                        ${stats.mean !== undefined ? `
+                        <div class="stat-item">
+                            <div class="stat-label">Mean</div>
+                            <div class="stat-value">${parseFloat(stats.mean).toFixed(2)}</div>
+                        </div>` : ''}
+                        ${stats.std !== undefined ? `
+                        <div class="stat-item">
+                            <div class="stat-label">Std Dev</div>
+                            <div class="stat-value">${parseFloat(stats.std).toFixed(2)}</div>
+                        </div>` : ''}
+                    </div>
+
+                    <h4>Sample Values:</h4>
+                    <div class="sample-values">${stats.sample_unique_values.slice(0, 5).join(', ')}</div>
+
+                    <!-- DESCRIPTION FIRST -->
+                    <div class="description-section">
+                        <h4>AI Generated Column Description</h4>
+                        <div class="form-group">
+                            <label>Column Description:</label>
+                            <textarea id="columnDesc${currentColumnIndex}" rows="3" placeholder="Describe what this column represents...">${suggestedDescription}</textarea>
+                        </div>
+                        <button class="btn btn-secondary" onclick="reanalyzeWithDescription('${columnName}')">Update Description</button>
+                    </div>
+
+                    <!-- TYPE CLASSIFICATION SECOND -->
+                    <div class="type-section" id="typeSection${currentColumnIndex}">
+                        <h4>AI Column Type Classification</h4>
+                        <div class="form-group">
+                            <label>Column Type:</label>
+                            <select id="columnType${currentColumnIndex}">
+                                <option value="binary" ${suggestedType === 'binary' ? 'selected' : ''}>Binary</option>
+                                <option value="categorical" ${suggestedType === 'categorical' ? 'selected' : ''}>Categorical</option>
+                                <option value="ordinal" ${suggestedType === 'ordinal' ? 'selected' : ''}>Ordinal</option>
+                                <option value="continuous" ${suggestedType === 'continuous' ? 'selected' : ''}>Continuous</option>
+                                <option value="identifier" ${suggestedType === 'identifier' ? 'selected' : ''}>Identifier</option>
+                                <option value="free_text" ${suggestedType === 'free_text' ? 'selected' : ''}>Free Text</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn" onclick="confirmCurrentColumn('${columnName}')">Save Column</button>
+                </div>
+            `;
+
+            document.getElementById('columnAnalysis').innerHTML = html;
+        }
+
+        function generateConfidenceBars(confidence) {
+            let html = '';
+            for (const [type, value] of Object.entries(confidence)) {
+                html += `
+                    <div class="confidence-item">
+                        <div class="confidence-label">${type}</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${value * 100}%"></div>
+                        </div>
+                        <div class="confidence-value">${(value * 100).toFixed(0)}%</div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function reanalyzeWithDescription(columnName) {
+            const description = document.getElementById(`columnDesc${currentColumnIndex}`).value.trim();
+
+            if (!description) {
+                alert('Please provide a description first.');
+                return;
+            }
+
+            // Show loading state
+            const typeSection = document.getElementById(`typeSection${currentColumnIndex}`);
+            typeSection.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Reanalyzing type based on updated description...</p>
+                </div>
+            `;
+
+            // Call backend to reanalyze type with updated description
+            fetch('/reanalyze_type', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    column_name: columnName,
+                    description: description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error reanalyzing type: ' + data.error);
+                    // Restore previous state on error
+                    location.reload();
+                } else {
+                    // Update the type section with new results
+                    updateTypeSection(data.suggested_type);
+                }
+            })
+            .catch(error => {
+                alert('Error reanalyzing type: ' + error.message);
+                // Restore previous state on error
+                location.reload();
+            });
+        }
+
+        function updateTypeSection(suggestedType) {
+            const typeSection = document.getElementById(`typeSection${currentColumnIndex}`);
+            typeSection.innerHTML = `
+                <h4>Column Type Classification (Updated)</h4>
+                <div class="form-group">
+                    <label>Column Type:</label>
+                    <select id="columnType${currentColumnIndex}">
+                        <option value="binary" ${suggestedType === 'binary' ? 'selected' : ''}>Binary</option>
+                        <option value="categorical" ${suggestedType === 'categorical' ? 'selected' : ''}>Categorical</option>
+                        <option value="ordinal" ${suggestedType === 'ordinal' ? 'selected' : ''}>Ordinal</option>
+                        <option value="continuous" ${suggestedType === 'continuous' ? 'selected' : ''}>Continuous</option>
+                        <option value="identifier" ${suggestedType === 'identifier' ? 'selected' : ''}>Identifier</option>
+                        <option value="free_text" ${suggestedType === 'free_text' ? 'selected' : ''}>Free Text</option>
+                    </select>
+                </div>
+                <p style="color: #27ae60; font-weight: 600; margin-top: 10px;">✅ Column Type updated based on your description!</p>
+            `;
+        }
+
+        function confirmCurrentColumn(columnName) {
+            const description = document.getElementById(`columnDesc${currentColumnIndex}`).value.trim();
+            const selectedType = document.getElementById(`columnType${currentColumnIndex}`).value;
+
+            if (!description) {
+                alert('Please provide a description for this column.');
+                return;
+            }
+
+            // Save to local state
+            columnAnalysisData[currentColumnIndex].description = description;
+            columnAnalysisData[currentColumnIndex].type = selectedType;
+
+            // Show confirmation
+            alert(`Column "${columnName}" saved successfully!`);
+        }
+
+        function confirmColumn(columnName) {
+            const description = document.getElementById(`columnDesc${currentColumnIndex}`).value.trim();
+            const selectedType = document.getElementById(`columnType${currentColumnIndex}`).value;
+
+            if (!description) {
+                alert('Please provide a description for this column.');
+                return;
+            }
+
+            // Send confirmation to backend
+            fetch('/confirm_column', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    column_name: columnName,
+                    type: selectedType,
+                    description: description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error confirming column: ' + data.error);
+                } else {
+                    currentColumnIndex++;
+                    analyzeNextColumn();
+                }
+            })
+            .catch(error => {
+                alert('Error confirming column: ' + error.message);
+            });
+        }
+
+        function generateFinalMetadata() {
+            fetch('/get_metadata', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error getting metadata: ' + data.error);
+                } else {
+                    displayResults(data);
+                }
+            });
+        }
+
+        function displayResults(metadata) {
+            let html = `
+                <div class="data-preview">
+                    <h3>Dataset: ${metadata.dataset_name}</h3>
+                    <p><strong>Description:</strong> ${metadata.dataset_description}</p>
+                    <p><strong>Total Columns:</strong> ${metadata.columns.length}</p>
+
+                    <h4>Column Summary:</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Column Name</th>
+                                <th>Description</th>
+                                <th>Type</th>
+                                <th>Missing Values</th>
+                                <th>Unique Values</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            metadata.columns.forEach(col => {
+                html += `
+                    <tr>
+                        <td><strong>${col.name}</strong></td>
+                        <td>${col.description}</td>
+                        <td><span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${col.type.toUpperCase()}</span></td>
+                        <td>${col.missing_values}</td>
+                        <td>${col.unique_values}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('metadataResults').innerHTML = html;
+
+            // Setup download button
+            document.getElementById('downloadBtn').onclick = function() {
+                fetch('/download_metadata', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId
+                    })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    }
+                    throw new Error('Download failed');
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${metadata.dataset_name.replace(/\s+/g, '_').toLowerCase()}_metadata.json`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    alert('Error downloading file: ' + error.message);
+                });
+            };
+        }
+
+        // Initialize
+        document.getElementById('nextBtn').disabled = true;
+    </script>
+</body>
+</html>
