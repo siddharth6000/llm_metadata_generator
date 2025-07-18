@@ -1,8 +1,8 @@
 """
-LLM Metadata Extractor v1.0.3
+LLM Metadata Extractor v1.1.0
 
 Enhanced dataset metadata extraction with comprehensive prompting, context-aware analysis,
-and statistical enrichment for production-ready metadata generation.
+statistical enrichment, and web interface for interactive metadata generation.
 """
 
-__version__ = "1.0.3"
+__version__ = "1.1.0"
