@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+## v1.1.1
+
+### Added
+- Local LLM server support with FastAPI-based Mistral 7B Instruct implementation
+- Integrated local server file at `metadata_extractor_package/local_server/llm_server_ms_7b.py`
+- Enhanced column navigation with back/forward functionality in web interface
+- Improved column selector with visual status indicators (pending, current, completed)
+- Save column functionality allowing users to confirm individual columns before proceeding
+- Column state management preserving descriptions and types during navigation
+- Better user feedback with save confirmations and status updates
+- Enhanced web interface with improved column workflow and navigation controls
+
+### Changed
+- Updated function names for better clarity: `query_desc` to `query_description_generation`
+- Enhanced web interface with horizontal column selector showing progress status
+- Improved column analysis workflow with save/confirm functionality per column
+- Better visual feedback in web interface with status indicators and progress tracking
+- Enhanced session management to preserve column states during navigation
+- Updated file structure documentation to include local server directory
+
+### Technical Improvements
+- Added comprehensive local LLM server with Mistral 7B Instruct v0.3 model
+- FastAPI-based server with automatic model loading and text generation pipeline
+- FP16 precision support for efficient GPU usage in local server
+- Enhanced web interface JavaScript for column navigation and state management
+- Improved error handling and user feedback throughout the application
+- Better separation of concerns between description generation and type classification functions
+
+### Performance
+- Optimized local LLM server with efficient model loading and pipeline configuration
+- Enhanced web interface responsiveness with better state management
+- Improved column navigation performance with cached analysis results
+- Better memory management for local LLM server operations
+
 ## v1.1.0
 
 ### Added

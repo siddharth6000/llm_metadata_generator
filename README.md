@@ -1,11 +1,18 @@
-# LLM Metadata Extractor v1.1.0
+# LLM Metadata Extractor v1.1.1
 
-A comprehensive Python tool that uses Large Language Models to analyze and annotate dataset columns with semantic types and descriptions. This version features enhanced prompting with comprehensive examples, improved metadata output with statistical enrichment, and a modern web interface for interactive metadata generation.
+A comprehensive Python tool that uses Large Language Models to analyze and annotate dataset columns with semantic types and descriptions. This version features enhanced prompting with comprehensive examples, improved metadata output with statistical enrichment, modern web interface for interactive metadata generation, and integrated local LLM server support.
 
 ## Features
 
+### Local LLM Server Support
+- **Integrated Mistral 7B Server**: Built-in FastAPI server with Mistral 7B Instruct v0.3 model
+- **Self-Contained Solution**: No external API dependencies required
+- **GPU Optimization**: FP16 precision and automatic device mapping for efficient inference
+- **Easy Setup**: Single command to start local LLM server
+
 ### Web Interface
 - **Modern Flask-based Web Application**: Interactive interface for dataset metadata extraction
+- **Enhanced Column Navigation**: Navigate back and forth between columns with visual progress indicators
 - **Guided Multi-step Workflow**: Upload CSV files, provide dataset information, and analyze columns through an intuitive process
 - **Real-time AI Analysis**: AI-powered column descriptions and type classifications with live feedback
 - **Interactive Description Updates**: Edit descriptions and receive updated type classifications instantly
@@ -16,7 +23,7 @@ A comprehensive Python tool that uses Large Language Models to analyze and annot
 - **Enhanced LLM Prompting**: Comprehensive examples for all 6 semantic types with improved accuracy
 - **Context-Aware Analysis**: Uses dataset samples and context for better LLM understanding
 - **Three-Stage LLM Process**: Description generation, type classification, and iterative refinement
-- **Remote LLM Support**: Configurable remote LLM API endpoints with ngrok tunnel support
+- **Local and Remote LLM Support**: Works with integrated local server or configurable remote endpoints
 
 ### Statistical Analysis
 - **Automated Statistical Analysis**: Computes descriptive statistics for numeric and categorical columns
@@ -35,14 +42,14 @@ A comprehensive Python tool that uses Large Language Models to analyze and annot
 ### Export and Integration
 - **JSON Confidence Scoring**: LLM provides confidence scores for each semantic type
 - **Enhanced Error Handling**: Better JSON parsing and fallback mechanisms
-- **Memory Optimization**: 4-bit quantization with BitsAndBytesConfig for efficient GPU usage
+- **Memory Optimization**: Efficient model loading and inference
 - **JSON Export**: Saves enriched dataset metadata in structured JSON format
 
 ## Installation
 
 ### Prerequisites
 - Python 3.8+
-- CUDA-compatible GPU (recommended)
+- CUDA-compatible GPU (recommended for local LLM server)
 - Required Python packages (see requirements.txt)
 
 ### Install Dependencies
@@ -52,83 +59,99 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Web Interface
-Start the Flask web application:
+### Option 1: Local LLM Server (Recommended)
+
+#### Step 1: Start Local LLM Server
+```bash
+cd metadata_extractor_package/local_server
+python llm_server_ms_7b.py
+```
+
+The server will start on `http://localhost:8000` and automatically load the Mistral 7B Instruct model.
+
+#### Step 2: Update Configuration
+Ensure `meta_data_ex_api.py` points to local server:
+```python
+API_URL = "http://localhost:8000/generate"
+```
+
+#### Step 3: Start Web Interface
 ```bash
 python app.py
 ```
 
 Open your browser to `http://localhost:5000`
 
-#### Web Interface Workflow
-1. **Upload CSV**: Drag and drop or browse for your dataset file
-2. **Dataset Information**: Provide name and description with live data preview
-3. **Column Analysis**: AI analyzes each column with interactive feedback and confidence visualization
-4. **Download Results**: Export metadata JSON directly from browser
+### Option 2: Remote LLM Server
 
-### Command Line Interface
-```bash
-python meta_data_ex_api.py --csv your_dataset.csv
+#### Configure Remote Endpoint
+Edit `API_URL` in `meta_data_ex_api.py`:
+```python
+API_URL = "https://your-remote-endpoint.com/generate"
 ```
 
-#### Example
+#### Start Web Interface
 ```bash
-python meta_data_ex_api.py --csv datasets/Dataset.csv
+python app.py
 ```
 
-### Test LLM Connection
+### Testing LLM Connection
 ```bash
 python meta_data_ex_api.py --test-llm
 ```
 
 ## Configuration
 
-### LLM API Setup
-Configure your LLM endpoint in `meta_data_ex_api.py`:
-```python
-API_URL = "https://your-llm-endpoint.com/generate"
-```
+### Local LLM Server
+The integrated server uses Mistral 7B Instruct v0.3 with optimized settings:
+- **Model**: `mistralai/Mistral-7B-Instruct-v0.3`
+- **Precision**: FP16 for efficient GPU usage
+- **Device Mapping**: Automatic GPU/CPU allocation
+- **Pipeline**: Optimized text generation with sampling
 
-The tool supports local LLM servers, ngrok tunnels for remote access, and cloud LLM APIs with custom endpoints.
+### Remote LLM Setup
+For remote endpoints, the tool supports:
+- **Local servers**: Ollama, vLLM, Text Generation WebUI
+- **Cloud APIs**: OpenAI, Anthropic, or custom endpoints
+- **Tunneled servers**: ngrok or similar tunneling solutions
 
 ## How It Works
 
 ### Web Interface Workflow
-1. **Upload Dataset**: Upload CSV file with automatic validation (maximum 16MB)
-2. **Dataset Annotation**: Provide dataset name and description with data preview
-3. **AI-Powered Column Analysis**: For each column:
+1. **Start Local Server**: Launch the integrated Mistral 7B server for AI processing
+2. **Upload Dataset**: Upload CSV file with automatic validation (maximum 16MB)
+3. **Dataset Annotation**: Provide dataset name and description with data preview
+4. **AI-Powered Column Analysis**: For each column:
    - View comprehensive statistics and sample values
    - AI generates natural language description
    - AI classifies semantic type with confidence scores
+   - Navigate between columns with back/forward controls
    - Edit descriptions to get updated type classifications
+   - Save individual columns and track progress
    - Confirm or override AI suggestions
-4. **Export Results**: Download structured JSON metadata
+5. **Export Results**: Download structured JSON metadata
 
-### Command Line Workflow
-1. **Load Dataset**: Tool loads your CSV file using pandas
-2. **Dataset Annotation**: You provide a name and description for the dataset
-3. **For Each Column**:
-   - Computes comprehensive statistical summaries
-   - Applies rule-based initial type detection
-   - Uses enhanced LLM prompting with 6 comprehensive examples
-   - Provides dataset context and sample data to LLM
-   - Displays LLM analysis and suggestions with confidence scores
-   - Allows you to accept or override the LLM suggestion
-   - Generates detailed column description using improved prompts
-   - Allows you to accept or provide custom description
-4. **Export Enriched Metadata**: Saves all annotations with statistical enrichment to a JSON file
+### Local Server Benefits
+- **No Internet Required**: Fully offline operation after initial model download
+- **Data Privacy**: All processing happens locally on your machine
+- **Consistent Performance**: No rate limits or external API dependencies
+- **Cost Effective**: No per-request charges for API usage
 
 ## File Structure
 
 ```
-├── app.py                    # Flask web application
-├── meta_data_ex_api.py      # Core analysis engine and CLI interface
-├── requirements.txt         # Python dependencies
+├── app.py                              # Flask web application
+├── meta_data_ex_api.py                # Core analysis engine
+├── requirements.txt                   # Python dependencies
 ├── templates/
-│   └── index.html          # Web interface template
-├── examples/               # Example outputs
-├── docs/                  # Documentation
-└── README.md             # This file
+│   └── index.html                    # Web interface template
+├── metadata_extractor_package/
+│   ├── __init__.py                   # Version information
+│   └── local_server/
+│       └── llm_server_ms_7b.py     # Local Mistral 7B server
+├── examples/                         # Example outputs
+├── docs/                            # Documentation
+└── README.md                        # This file
 ```
 
 ## API Endpoints
@@ -145,6 +168,9 @@ The tool supports local LLM servers, ngrok tunnels for remote access, and cloud 
 ### Utility Endpoints
 - `GET /health`: Health check and system status
 - `GET /`: Serve web interface
+
+### Local LLM Server Endpoints
+- `POST /generate`: Generate text using local Mistral 7B model
 
 ## Enhanced Output Format
 
@@ -186,53 +212,52 @@ requests==2.31.0
 transformers==4.36.2
 torch==2.1.2
 Werkzeug==3.0.1
+fastapi>=0.68.0
+uvicorn>=0.15.0
 ```
 
 ## Limitations
 
-- File size limited to 16MB maximum for web uploads
-- Requires configured LLM endpoint for AI features
-- Optimal performance requires sufficient GPU memory
-- Processes one CSV file at a time
-- Web interface uses in-memory sessions (production deployments should use Redis or database)
+- **Local Server Requirements**: Local LLM server requires GPU with sufficient memory (8GB+ recommended)
+- **File Size**: Web uploads limited to 16MB maximum
+- **Model Download**: Initial setup requires downloading Mistral 7B model (approximately 13GB)
+- **Processing Speed**: Local inference speed depends on GPU capabilities
+- **Single File Processing**: Processes one CSV file at a time
+- **Session Storage**: Web interface uses in-memory sessions (production deployments should use Redis or database)
 
 ## Examples
 
-### Web Interface
-1. Start the server: `python app.py`
-2. Navigate to `http://localhost:5000`
-3. Upload a CSV file and follow the guided workflow
-4. Download your enriched metadata JSON
-
-### Command Line
+### Local Setup Example
 ```bash
-# Basic usage
-python meta_data_ex_api.py --csv data/my_dataset.csv
+# Terminal 1: Start local LLM server
+cd metadata_extractor_package/local_server
+python llm_server_ms_7b.py
 
-# Test LLM connection
-python meta_data_ex_api.py --test-llm
+# Terminal 2: Start web interface
+python app.py
+
+# Browser: Navigate to http://localhost:5000
 ```
 
-For a complete working example, see the recruitment dataset analysis in `examples/` folder which demonstrates the tool's output evolution across versions.
+### Remote Setup Example
+```bash
+# Edit meta_data_ex_api.py
+API_URL = "https://your-api-endpoint.com/generate"
+
+# Test connection
+python meta_data_ex_api.py --test-llm
+
+# Start web interface
+python app.py
+```
+
+For complete working examples, see the recruitment dataset analysis in `examples/` folder which demonstrates the tool's output evolution across versions.
 
 ## Documentation
 
 - **Workflow Diagram**: See `docs/metadata_completion_flowchart.pdf` for a visual representation of the metadata extraction process
 - **Process Flow**: The diagram shows the complete workflow from dataset upload to final JSON output
 - **Future Features**: Documentation includes notes on planned fairness metadata capabilities
-
-## Interactive Workflow
-
-### Command Line Usage
-1. Enter dataset name and description when prompted
-2. For each column:
-   - Review the displayed statistics
-   - LLM analyzes column using enhanced prompts with comprehensive examples
-   - LLM considers dataset context and sample data
-   - Accept LLM suggestion or manually enter different type
-   - LLM generates detailed column description based on improved prompting
-   - Accept generated description or provide custom description
-3. The tool saves all enriched metadata to a JSON file
 
 ## Supported Column Types
 
@@ -260,18 +285,23 @@ The tool automatically computes relevant statistics based on data type:
 
 ## LLM Integration
 
-This version uses remote LLM APIs with enhanced prompting:
-- **Remote API Support**: Configurable endpoints for various LLM providers
+This version supports both local and remote LLM integration:
+
+### Local Integration
+- **Model**: Mistral 7B Instruct v0.3
+- **Framework**: FastAPI with Transformers pipeline
+- **Optimization**: FP16 precision and device mapping
+- **Benefits**: Privacy, offline operation, no API costs
+
+### Remote Integration
+- **API Support**: Configurable endpoints for various LLM providers
 - **Enhanced Prompting**: 6 comprehensive examples covering all semantic types
 - **Context-Aware**: Includes dataset samples and context in prompts
-- **ngrok Support**: Compatible with tunneled local LLM servers
-- **Confidence Scoring**: Provides 0-1 confidence scores for each semantic type
-- **JSON Structured Output**: Ensures consistent, parseable responses
 - **Fallback Handling**: Graceful error handling with manual input fallback
 
 ## Contributing
 
-This is version 1.1.0 featuring the new web interface alongside enhanced AI analysis capabilities. Future versions will include more sophisticated analysis capabilities and improved deployment options.
+This is version 1.1.1 featuring integrated local LLM server support alongside the existing web interface and enhanced column navigation capabilities. Future versions will include more sophisticated analysis capabilities and additional model options.
 
 ## License
 
