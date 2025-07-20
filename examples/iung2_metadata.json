@@ -1,0 +1,158 @@
+{
+    "dataset_name": "IUNG2",
+    "dataset_description": "This dataset provides hourly weather data from the IUNG2 station, including temperature, humidity, wind speed, and precipitation.",
+    "columns": [
+        {
+            "name": "id",
+            "description": "This column represents the unique identifier for the weather station from which the recorded hourly weather data originates.",
+            "type": "identifier",
+            "missing_values": 0,
+            "unique_values": 1
+        },
+        {
+            "name": "airTemperatureMin",
+            "description": "This column represents the minimum air temperature, measured in degrees Celsius, recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 202,
+            "mean": 20.316010854816827,
+            "std": 4.996932628676736,
+            "min": 10.0,
+            "max": 33.1
+        },
+        {
+            "name": "airTemperatureMax",
+            "description": "This column represents the maximum air temperature, measured in degrees Celsius, recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 206,
+            "mean": 21.341926729986433,
+            "std": 5.068323202698849,
+            "min": 10.8,
+            "max": 33.5
+        },
+        {
+            "name": "relativeHumidityMax",
+            "description": "This column represents the highest recorded relative humidity, expressed as a percentage, at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 337,
+            "mean": 77.62903663500678,
+            "std": 20.7750195748878,
+            "min": 32.0,
+            "max": 99.9
+        },
+        {
+            "name": "aggregateDate",
+            "description": "This column represents the specific date and hour at which each set of weather data was recorded, formatted as an ISO 8601 timestamp with a precision of one hour.",
+            "type": "categorical",
+            "missing_values": 0,
+            "unique_values": 744
+        },
+        {
+            "name": "airTemperatureAvg",
+            "description": "This column represents the average air temperature, measured in degrees Celsius, recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 561,
+            "mean": 20.830895522388058,
+            "std": 5.0298200991246915,
+            "min": 10.48,
+            "max": 33.2
+        },
+        {
+            "name": "relativeHumidityMin",
+            "description": "This column represents the lowest recorded relative humidity, expressed as a percentage, at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 374,
+            "mean": 73.20922659430121,
+            "std": 21.614057210577514,
+            "min": 29.9,
+            "max": 99.9
+        },
+        {
+            "name": "relativeHumidityAvg",
+            "description": "This column represents the average relative humidity, expressed as a percentage, recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 537,
+            "mean": 75.41940298507463,
+            "std": 21.12004277240712,
+            "min": 30.85,
+            "max": 99.9
+        },
+        {
+            "name": "insolationAvg",
+            "description": "This column represents the average amount of solar radiation, often referred to as insolation, received on a given area in a specific time period at the weather station, typically measured in watts per square meter (W/m\u00b2) during each hourly interval.",
+            "type": "categorical",
+            "missing_values": 744,
+            "unique_values": 0
+        },
+        {
+            "name": "windSpeedMin",
+            "description": "This column represents the minimum speed of the wind, usually measured in meters per second, recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 43,
+            "mean": 1.0042062415196742,
+            "std": 0.9517981842247857,
+            "min": 0.0,
+            "max": 4.5
+        },
+        {
+            "name": "windSpeedMax",
+            "description": "This column represents the maximum speed of the wind, usually measured in meters per second, recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 54,
+            "mean": 1.8016282225237445,
+            "std": 1.1100198576691311,
+            "min": 0.0,
+            "max": 7.0
+        },
+        {
+            "name": "windSpeedAvg",
+            "description": "This column represents the average speed of the wind, typically measured in meters per second, recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 7,
+            "unique_values": 224,
+            "mean": 1.3889416553595657,
+            "std": 1.0185967639430193,
+            "min": 0.0,
+            "max": 5.78
+        },
+        {
+            "name": "airPressureMin",
+            "description": "This column represents the minimum air pressure, typically measured in hectopascals (hPa), recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 744,
+            "unique_values": 0
+        },
+        {
+            "name": "airPressureMax",
+            "description": "This column represents the maximum air pressure, typically measured in hectopascals (hPa), recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 744,
+            "unique_values": 0
+        },
+        {
+            "name": "precipitationSum",
+            "description": "This column represents the total amount of precipitation, typically measured in millimeters, that was recorded at the weather station during each hourly interval. This includes any form of water, liquid or solid, that falls from the atmosphere and reaches the ground, such as rain, snow, sleet, or hail.",
+            "type": "continuous",
+            "missing_values": 0,
+            "unique_values": 19,
+            "mean": 0.06518817204301075,
+            "std": 0.5280660946741738,
+            "min": 0.0,
+            "max": 9.0
+        },
+        {
+            "name": "airPressureAvg",
+            "description": "This column represents the average air pressure, typically measured in hectopascals (hPa), recorded at the weather station during each hourly interval.",
+            "type": "continuous",
+            "missing_values": 744,
+            "unique_values": 0
+        }
+    ]
+}

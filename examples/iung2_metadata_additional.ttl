@@ -1,0 +1,607 @@
+@prefix dataset: <http://example.org/dataset/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dqv: <http://www.w3.org/ns/dqv#> .
+@prefix metrics: <http://example.org/metrics/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dataset:MetadataExtractionTool a prov:SoftwareAgent ;
+    rdfs:label "Dataset Metadata Extraction Tool" ;
+    dcterms:description "AI-powered tool for extracting dataset metadata with column descriptions and type classification" .
+
+metrics:columnCount a dqv:Metric ;
+    dcterms:description "Total number of columns in the dataset" ;
+    skos:prefLabel "Column Count" ;
+    dqv:inDimension dqv:completeness .
+
+dataset:IUNG2 a dcat:Dataset ;
+    dcterms:created "2025-07-03T23:47:33.618895"^^xsd:dateTime ;
+    dcterms:description "This dataset provides hourly weather data from the IUNG2 station, including temperature, humidity, wind speed, and precipitation." ;
+    dcterms:title "IUNG2" ;
+    schema1:variableMeasured <http://example.org/dataset/IUNG2/column/aggregateDate>,
+        <http://example.org/dataset/IUNG2/column/airPressureAvg>,
+        <http://example.org/dataset/IUNG2/column/airPressureMax>,
+        <http://example.org/dataset/IUNG2/column/airPressureMin>,
+        <http://example.org/dataset/IUNG2/column/airTemperatureAvg>,
+        <http://example.org/dataset/IUNG2/column/airTemperatureMax>,
+        <http://example.org/dataset/IUNG2/column/airTemperatureMin>,
+        <http://example.org/dataset/IUNG2/column/id>,
+        <http://example.org/dataset/IUNG2/column/insolationAvg>,
+        <http://example.org/dataset/IUNG2/column/precipitationSum>,
+        <http://example.org/dataset/IUNG2/column/relativeHumidityAvg>,
+        <http://example.org/dataset/IUNG2/column/relativeHumidityMax>,
+        <http://example.org/dataset/IUNG2/column/relativeHumidityMin>,
+        <http://example.org/dataset/IUNG2/column/windSpeedAvg>,
+        <http://example.org/dataset/IUNG2/column/windSpeedMax>,
+        <http://example.org/dataset/IUNG2/column/windSpeedMin> .
+
+<http://example.org/dataset/IUNG2/column/aggregateDate> a schema1:PropertyValue ;
+    schema1:description "This column represents the start time of a one-hour time period during which weather data was aggregated at a specific weather station. The time is recorded in ISO 8601 format." ;
+    schema1:name "aggregateDate" ;
+    schema1:valueReference "categorical" .
+
+<http://example.org/dataset/IUNG2/column/airPressureAvg> a schema1:PropertyValue ;
+    schema1:description "This column represents the average air pressure, measured in hectopascals (hPa), that was recorded during a specific one-hour time period at a given weather station. Air pressure is a measure of the force exerted by the weight of the air above a certain point, and can be influenced by factors such as temperature, altitude, and weather conditions." ;
+    schema1:name "airPressureAvg" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/airPressureMax> a schema1:PropertyValue ;
+    schema1:description "This column represents the maximum air pressure, measured in hectopascals (hPa), that was recorded during a specific one-hour time period at a given weather station. Air pressure is a measure of the force exerted by the weight of the air above a certain point, and can be influenced by factors such as temperature, altitude, and weather conditions." ;
+    schema1:name "airPressureMax" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/airPressureMin> a schema1:PropertyValue ;
+    schema1:description "This column represents the minimum air pressure, measured in hectopascals (hPa), that was recorded during a specific one-hour time period at a given weather station. Air pressure is a measure of the force exerted by the weight of the air above a certain point, and can be influenced by factors such as temperature, altitude, and weather conditions." ;
+    schema1:name "airPressureMin" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/id> a schema1:PropertyValue ;
+    schema1:description "This column represents the internal identification code assigned to the weather station within the eDWIN system from which the hourly weather data is recorded." ;
+    schema1:name "id" ;
+    schema1:valueReference "identifier" .
+
+<http://example.org/dataset/IUNG2/column/insolationAvg> a schema1:PropertyValue ;
+    schema1:description "This column represents the average value of solar irradiance, measured over a one-hour time period at a specific weather station. Solar irradiance refers to the power per unit area (surface power density) received from the Sun in the form of electromagnetic radiation." ;
+    schema1:name "insolationAvg" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/airTemperatureAvg> a schema1:PropertyValue ;
+    schema1:description "This column represents the average air temperature, measured in degrees Celsius, that was recorded during a specific one-hour time period at a given weather station." ;
+    schema1:name "airTemperatureAvg" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/airTemperatureMax> a schema1:PropertyValue ;
+    schema1:description "This column represents the maximum air temperature, measured in degrees Celsius, recorded during a given one-hour time period at a specific weather station." ;
+    schema1:name "airTemperatureMax" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/airTemperatureMin> a schema1:PropertyValue ;
+    schema1:description "This column represents the minimum air temperature, measured in degrees Celsius, observed during a specific one-hour time period at a given weather station." ;
+    schema1:name "airTemperatureMin" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/precipitationSum> a schema1:PropertyValue ;
+    schema1:description "This column represents the total amount of precipitation, measured in millimeters, that was recorded during a specific one-hour time period at a given weather station. Precipitation refers to any product of the condensation of atmospheric water vapor that falls under gravity, including rain, snow, sleet, or hail." ;
+    schema1:name "precipitationSum" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/relativeHumidityAvg> a schema1:PropertyValue ;
+    schema1:description "This column represents the average percentage of relative humidity that was recorded during a specific one-hour time period at a given weather station." ;
+    schema1:name "relativeHumidityAvg" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/relativeHumidityMax> a schema1:PropertyValue ;
+    schema1:description "This column represents the highest percentage of relative humidity recorded during a specific one-hour time period at a given weather station. Relative humidity is a measure of the amount of moisture in the air compared to the maximum amount of moisture the air could hold at the same temperature." ;
+    schema1:name "relativeHumidityMax" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/relativeHumidityMin> a schema1:PropertyValue ;
+    schema1:description "This column represents the lowest percentage of relative humidity recorded during a specific one-hour time period at a given weather station. Relative humidity is a measure of the amount of moisture in the air compared to the maximum amount of moisture the air could hold at the same temperature." ;
+    schema1:name "relativeHumidityMin" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/windSpeedAvg> a schema1:PropertyValue ;
+    schema1:description "This column represents the average wind speed, measured in meters per second, that was recorded over a specific one-hour time period at a given weather station." ;
+    schema1:name "windSpeedAvg" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/windSpeedMax> a schema1:PropertyValue ;
+    schema1:description "This column represents the maximum speed of the wind, measured in meters per second, that was recorded during a specific one-hour time period at a given weather station." ;
+    schema1:name "windSpeedMax" ;
+    schema1:valueReference "continuous" .
+
+<http://example.org/dataset/IUNG2/column/windSpeedMin> a schema1:PropertyValue ;
+    schema1:description "This column represents the minimum speed of the wind, measured in meters per second, that was recorded during a specific one-hour time period at a given weather station." ;
+    schema1:name "windSpeedMin" ;
+    schema1:valueReference "continuous" .
+
+metrics:maximumValue a dqv:Metric ;
+    dcterms:description "Maximum value in the numerical column" ;
+    skos:prefLabel "Maximum Value" ;
+    dqv:inDimension dqv:accuracy .
+
+metrics:meanValue a dqv:Metric ;
+    dcterms:description "Average value of the numerical column" ;
+    skos:prefLabel "Mean Value" ;
+    dqv:inDimension dqv:accuracy .
+
+metrics:minimumValue a dqv:Metric ;
+    dcterms:description "Minimum value in the numerical column" ;
+    skos:prefLabel "Minimum Value" ;
+    dqv:inDimension dqv:accuracy .
+
+metrics:standardDeviation a dqv:Metric ;
+    dcterms:description "Standard deviation of the numerical column" ;
+    skos:prefLabel "Standard Deviation" ;
+    dqv:inDimension dqv:accuracy .
+
+metrics:dataType a dqv:Metric ;
+    dcterms:description "Semantic data type of the column" ;
+    skos:prefLabel "Data Type" ;
+    dqv:inDimension dqv:consistency .
+
+metrics:missingValues a dqv:Metric ;
+    dcterms:description "Number of missing/null values in the column" ;
+    skos:prefLabel "Missing Values" ;
+    dqv:inDimension dqv:completeness .
+
+metrics:uniqueValues a dqv:Metric ;
+    dcterms:description "Number of unique values in the column" ;
+    skos:prefLabel "Unique Values" ;
+    dqv:inDimension dqv:completeness .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMax> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 2.077502e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureAvg> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 5.02982e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityAvg> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 3.085e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureAvg> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 1.048e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMax> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 206 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/id> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "identifier" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMax> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/aggregateDate> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 0 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMin> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 43 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn dataset:IUNG2 ;
+    dqv:isMeasurementOf metrics:columnCount ;
+    dqv:value 16 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedAvg> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMax> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/precipitationSum> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMax> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 2.134193e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMin> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 374 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/insolationAvg> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 0 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMin> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMax> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 3.35e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedAvg> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 5.78e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureMin> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 0 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMin> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 2.99e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/insolationAvg> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMin> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 202 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedAvg> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 224 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMax> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 3.2e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMax> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedAvg> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 0e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMax> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 1.08e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureAvg> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureMin> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 744 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureAvg> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 744 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityAvg> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 2.112004e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/aggregateDate> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 744 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/precipitationSum> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 5.280661e-01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMin> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 2.161406e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureAvg> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMax> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 0e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureMax> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 744 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMin> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 1e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/precipitationSum> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 19 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityAvg> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMax> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 9.99e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMax> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 54 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMin> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 2.031601e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureMin> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityAvg> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/precipitationSum> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 0 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityAvg> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 537 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMin> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 4.5e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMin> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMin> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureAvg> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/precipitationSum> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 0e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMax> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 7.762904e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureAvg> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 2.08309e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMin> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/precipitationSum> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 6.518817e-02 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureAvg> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 3.32e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMax> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedAvg> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 1.018597e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMax> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 5.068323e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMax> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMax> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 1.11002e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureMax> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 0 .
+
+[] a prov:Activity ;
+    rdfs:label "Dataset Metadata Extraction" ;
+    prov:startedAtTime "2025-07-03T23:47:33.640172"^^xsd:dateTime ;
+    prov:used dataset:IUNG2 ;
+    prov:wasAssociatedWith dataset:MetadataExtractionTool .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMin> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 1.004206e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureAvg> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 561 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMin> ;
+    dqv:isMeasurementOf metrics:minimumValue ;
+    dqv:value 0e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureMax> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMin> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 4.996933e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMax> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 7e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMax> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMax> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 337 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedAvg> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 1.388942e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMin> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 7 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/insolationAvg> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 744 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMin> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedAvg> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "continuous" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMin> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 7.320923e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMin> ;
+    dqv:isMeasurementOf metrics:standardDeviation ;
+    dqv:value 9.517982e-01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityAvg> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 7.54194e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/id> ;
+    dqv:isMeasurementOf metrics:missingValues ;
+    dqv:value 0 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airPressureAvg> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 0 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/id> ;
+    dqv:isMeasurementOf metrics:uniqueValues ;
+    dqv:value 1 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/windSpeedMax> ;
+    dqv:isMeasurementOf metrics:meanValue ;
+    dqv:value 1.801628e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/aggregateDate> ;
+    dqv:isMeasurementOf metrics:dataType ;
+    dqv:value "categorical" .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/precipitationSum> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 9e+00 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityMin> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 9.99e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/relativeHumidityAvg> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 9.99e+01 .
+
+[] a dqv:QualityMeasurement ;
+    dqv:computedOn <http://example.org/dataset/IUNG2/column/airTemperatureMin> ;
+    dqv:isMeasurementOf metrics:maximumValue ;
+    dqv:value 3.31e+01 .
+
