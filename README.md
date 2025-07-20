@@ -1,8 +1,15 @@
-# LLM Metadata Extractor v1.1.1
+# LLM Metadata Extractor v1.1.2
 
-A comprehensive Python tool that uses Large Language Models to analyze and annotate dataset columns with semantic types and descriptions. This version features enhanced prompting with comprehensive examples, improved metadata output with statistical enrichment, modern web interface for interactive metadata generation, and integrated local LLM server support.
+A comprehensive Python tool that uses Large Language Models to analyze and annotate dataset columns with semantic types and descriptions. This version features enhanced prompting with comprehensive examples, improved metadata output with statistical enrichment, modern web interface for interactive metadata generation, integrated local LLM server support, and **NEW** DQV export capabilities with enhanced context file support.
 
 ## Features
+
+### NEW in v1.1.2
+- **DQV Export Support**: Export metadata in W3C Data Quality Vocabulary (DQV) format for semantic web applications
+- **Enhanced Context File Support**: Upload additional context files (.txt, .json, .pdf, .docx) with full content integration (no truncation)
+- **Advanced File Processing**: Automatic table extraction from DOCX files and text extraction from PDF files
+- **Improved Error Handling**: Enhanced error reporting and graceful fallback mechanisms
+- **Production Enhancements**: Better session management, health monitoring, and memory cleanup
 
 ### Local LLM Server Support
 - **Integrated Mistral 7B Server**: Built-in FastAPI server with Mistral 7B Instruct v0.3 model
@@ -17,11 +24,11 @@ A comprehensive Python tool that uses Large Language Models to analyze and annot
 - **Real-time AI Analysis**: AI-powered column descriptions and type classifications with live feedback
 - **Interactive Description Updates**: Edit descriptions and receive updated type classifications instantly
 - **Progress Tracking**: Visual progress bars and step-by-step guidance through the analysis process
-- **Professional Export**: Download metadata JSON files directly from the browser
+- **Professional Export**: Download metadata in JSON or DQV format directly from the browser
 
 ### AI-Powered Analysis
 - **Enhanced LLM Prompting**: Comprehensive examples for all 6 semantic types with improved accuracy
-- **Context-Aware Analysis**: Uses dataset samples and context for better LLM understanding
+- **Context-Aware Analysis**: Uses dataset samples and additional context files for better LLM understanding
 - **Three-Stage LLM Process**: Description generation, type classification, and iterative refinement
 - **Local and Remote LLM Support**: Works with integrated local server or configurable remote endpoints
 
@@ -40,10 +47,11 @@ A comprehensive Python tool that uses Large Language Models to analyze and annot
 - **Free Text**: Unstructured text content (Comments, Descriptions, Reviews)
 
 ### Export and Integration
-- **JSON Confidence Scoring**: LLM provides confidence scores for each semantic type
+- **JSON Export**: Standard structured metadata format for most applications
+- **DQV Export**: W3C Data Quality Vocabulary format for semantic web and FAIR data principles
 - **Enhanced Error Handling**: Better JSON parsing and fallback mechanisms
 - **Memory Optimization**: Efficient model loading and inference
-- **JSON Export**: Saves enriched dataset metadata in structured JSON format
+- **Production Ready**: Comprehensive logging, monitoring, and session management
 
 ## Installation
 
@@ -120,16 +128,17 @@ For remote endpoints, the tool supports:
 ### Web Interface Workflow
 1. **Start Local Server**: Launch the integrated Mistral 7B server for AI processing
 2. **Upload Dataset**: Upload CSV file with automatic validation (maximum 16MB)
-3. **Dataset Annotation**: Provide dataset name and description with data preview
-4. **AI-Powered Column Analysis**: For each column:
+3. **Upload Context Files** (NEW): Optionally upload additional context files (.txt, .json, .pdf, .docx)
+4. **Dataset Annotation**: Provide dataset name and description with data preview
+5. **AI-Powered Column Analysis**: For each column:
    - View comprehensive statistics and sample values
-   - AI generates natural language description
+   - AI generates natural language description using full context
    - AI classifies semantic type with confidence scores
    - Navigate between columns with back/forward controls
    - Edit descriptions to get updated type classifications
    - Save individual columns and track progress
    - Confirm or override AI suggestions
-5. **Export Results**: Download structured JSON metadata
+6. **Export Results**: Download structured metadata in JSON or DQV format
 
 ### Local Server Benefits
 - **No Internet Required**: Fully offline operation after initial model download
@@ -142,6 +151,7 @@ For remote endpoints, the tool supports:
 ```
 ├── app.py                              # Flask web application
 ├── meta_data_ex_api.py                # Core analysis engine
+├── dqv_export.py                      # DQV export module (NEW in v1.1.2)
 ├── requirements.txt                   # Python dependencies
 ├── templates/
 │   └── index.html                    # Web interface template
@@ -149,21 +159,28 @@ For remote endpoints, the tool supports:
 │   ├── __init__.py                   # Version information
 │   └── local_server/
 │       └── llm_server_ms_7b.py     # Local Mistral 7B server
-├── examples/                         # Example outputs
+├── examples/                         # Sample datasets and outputs (NEW in v1.1.2)
+│   ├── README.md                    # Examples documentation
+│   ├── IUNG2.csv                    # Sample dataset
+│   ├── Pilot 5 vocabularies.docx    # Additional context file
+│   ├── iung2_metadata.json          # Basic JSON output
+│   ├── iung2_metadata.ttl           # Basic DQV output
+│   ├── iung2_metadata_additional.json # Enhanced JSON output
+│   └── iung2_metadata_additional.ttl  # Enhanced DQV output
 ├── docs/                            # Documentation
-└── README.md                        # This file
+└── README.md                       # This file
 ```
 
 ## API Endpoints
 
 ### Core Endpoints
-- `POST /upload`: Upload CSV file and get initial analysis
+- `POST /upload`: Upload CSV file and optional context files
 - `POST /set_dataset_info`: Store dataset name and description
 - `POST /analyze_column`: AI-powered column analysis with dual LLM calls
 - `POST /reanalyze_type`: Update type based on edited description
 - `POST /confirm_column`: Save confirmed column metadata
 - `POST /get_metadata`: Retrieve complete dataset metadata
-- `POST /download_metadata`: Download metadata JSON file
+- `POST /download_metadata`: Download metadata in JSON or DQV format
 
 ### Utility Endpoints
 - `GET /health`: Health check and system status
@@ -174,6 +191,7 @@ For remote endpoints, the tool supports:
 
 ## Enhanced Output Format
 
+### JSON Format
 The tool generates an enriched JSON file with this structure:
 ```json
 {
@@ -202,6 +220,23 @@ The tool generates an enriched JSON file with this structure:
 }
 ```
 
+### DQV Format (NEW in v1.1.2)
+Export metadata in W3C Data Quality Vocabulary format for semantic web applications:
+```turtle
+@prefix dqv: <http://www.w3.org/ns/dqv#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<http://example.org/dataset/customer_analysis> a dcat:Dataset ;
+    dcterms:title "Customer Analysis Dataset" ;
+    dcterms:description "Customer demographics and behavior data" ;
+    dqv:hasQualityMeasurement [
+        a dqv:QualityMeasurement ;
+        dqv:isMeasurementOf <http://example.org/metrics/columnCount> ;
+        dqv:value 15
+    ] .
+```
+
 ## Requirements
 
 ```
@@ -214,12 +249,16 @@ torch==2.1.2
 Werkzeug==3.0.1
 fastapi>=0.68.0
 uvicorn>=0.15.0
+rdflib>=6.0.0          # NEW: For DQV export
+PyMuPDF>=1.21.0        # NEW: For PDF processing
+python-docx>=0.8.11    # NEW: For DOCX processing
+psutil>=5.8.0          # NEW: For system monitoring
 ```
 
 ## Limitations
 
 - **Local Server Requirements**: Local LLM server requires GPU with sufficient memory (8GB+ recommended)
-- **File Size**: Web uploads limited to 16MB maximum
+- **File Size**: Web uploads limited to 16MB maximum for CSV files
 - **Model Download**: Initial setup requires downloading Mistral 7B model (approximately 13GB)
 - **Processing Speed**: Local inference speed depends on GPU capabilities
 - **Single File Processing**: Processes one CSV file at a time
@@ -239,6 +278,15 @@ python app.py
 # Browser: Navigate to http://localhost:5000
 ```
 
+### Enhanced Workflow Example (NEW in v1.1.2)
+```bash
+# 1. Upload your CSV dataset
+# 2. Upload additional context (.pdf data dictionary, .txt documentation)
+# 3. Provide dataset information
+# 4. Navigate through columns with AI analysis
+# 5. Export in JSON or DQV format
+```
+
 ### Remote Setup Example
 ```bash
 # Edit meta_data_ex_api.py
@@ -251,58 +299,67 @@ python meta_data_ex_api.py --test-llm
 python app.py
 ```
 
-For complete working examples, see the recruitment dataset analysis in `examples/` folder which demonstrates the tool's output evolution across versions.
+## Examples and Sample Data
 
-## Documentation
+The `examples/` directory contains comprehensive sample datasets and outputs demonstrating the tool's capabilities:
 
-- **Workflow Diagram**: See `docs/metadata_completion_flowchart.pdf` for a visual representation of the metadata extraction process
-- **Process Flow**: The diagram shows the complete workflow from dataset upload to final JSON output
-- **Future Features**: Documentation includes notes on planned fairness metadata capabilities
+### Sample Dataset: IUNG2
+- **`IUNG2.csv`** - Representative dataset with mixed data types
+- **`Pilot 5 vocabularies.docx`** - Additional context file with domain vocabularies
+- **Output comparisons** showing improvement with additional context:
+  - `iung2_metadata.json` vs `iung2_metadata_additional.json`
+  - `iung2_metadata.ttl` vs `iung2_metadata_additional.ttl`
 
-## Supported Column Types
+### Usage Examples
+```bash
+# Basic analysis (CSV only)
+Upload: IUNG2.csv → Analyze → Export JSON/DQV
 
-The tool classifies columns into 6 semantic types with comprehensive examples:
-- **binary**: Two distinct values (Male/Female, Yes/No, True/False)
-- **categorical**: Limited set of discrete values (Country, Product Category, Status)
-- **ordinal**: Ordered categorical values (Low/Medium/High, Star Ratings)
-- **continuous**: Numeric values with meaningful ranges (Age, Income, Temperature)
-- **identifier**: Unique identifiers (Customer ID, SKU, UUID)
-- **free_text**: Unstructured text content (Comments, Descriptions, Reviews)
+# Enhanced analysis (CSV + context)
+Upload: IUNG2.csv + "Pilot 5 vocabularies.docx" → Analyze → Export enhanced JSON/DQV
+```
 
-## Column Statistics
+The examples demonstrate significant quality improvements when using additional context files, with more accurate column descriptions and better semantic type classification.
 
-The tool automatically computes relevant statistics based on data type:
-
-### Numeric Columns
-- Data type, unique values, missing values
-- Mean, standard deviation, min, max
-- Sample of unique values
-
-### Categorical Columns  
-- Data type, unique values, missing values
-- Most frequent value and its frequency
-- Sample of unique values
-
-## LLM Integration
-
-This version supports both local and remote LLM integration:
-
-### Local Integration
-- **Model**: Mistral 7B Instruct v0.3
-- **Framework**: FastAPI with Transformers pipeline
-- **Optimization**: FP16 precision and device mapping
-- **Benefits**: Privacy, offline operation, no API costs
-
-### Remote Integration
-- **API Support**: Configurable endpoints for various LLM providers
-- **Enhanced Prompting**: 6 comprehensive examples covering all semantic types
-- **Context-Aware**: Includes dataset samples and context in prompts
-- **Fallback Handling**: Graceful error handling with manual input fallback
+For detailed examples documentation, see [`examples/README.md`](examples/README.md).
 
 ## Contributing
 
-This is version 1.1.1 featuring integrated local LLM server support alongside the existing web interface and enhanced column navigation capabilities. Future versions will include more sophisticated analysis capabilities and additional model options.
+We welcome contributions! Please see our contribution guidelines for:
+- Bug reports and feature requests
+- Code contributions and pull requests
+- Documentation improvements
+- Example datasets and use cases
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+
+## Citation
+
+If you use this tool in your research, please cite:
+
+```bibtex
+@software{llm_metadata_extractor,
+  title={LLM Metadata Extractor: AI-Powered Dataset Annotation Tool},
+  author={LLM Metadata Extractor Team},
+  version={1.1.2},
+  year={2025},
+  url={https://github.com/your-username/llm-metadata-extractor}
+}
+```
+
+## Support
+
+- **Documentation**: See [SETUP.md](SETUP.md) for detailed setup instructions
+- **Troubleshooting**: Check the troubleshooting section in SETUP.md
+- **Issues**: Report bugs and feature requests on GitHub
+- **Health Monitoring**: Use the `/health` endpoint for system status
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and improvements.
+
+---
+
+**Happy metadata extraction with enhanced v1.1.2 features!** 🚀

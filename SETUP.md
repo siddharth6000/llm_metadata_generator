@@ -1,4 +1,4 @@
-# Quick Setup Guide - v1.1.1
+# Quick Setup Guide - v1.1.2
 
 ## Quick Start
 
@@ -99,6 +99,7 @@ API_URL = "https://your-cloud-api.com/v1/generate"
 ```
 ├── app.py                              # Web interface
 ├── meta_data_ex_api.py                # Core engine
+├── dqv_export.py                      # DQV export module (NEW in v1.1.2)
 ├── requirements.txt                   # Dependencies
 ├── templates/
 │   └── index.html                    # Web UI template
@@ -107,10 +108,48 @@ API_URL = "https://your-cloud-api.com/v1/generate"
 │   └── local_server/
 │       └── llm_server_ms_7b.py     # Local LLM server
 ├── your_dataset.csv                  # Your data
+├── additional_context.pdf            # Optional context files (NEW)
 └── output_metadata.json             # Generated metadata
 ```
 
+## New Features in v1.1.2
+
+### DQV Export Support
+```bash
+# Export in W3C Data Quality Vocabulary format
+# Available in web interface download options
+```
+
+### Enhanced Context File Support
+- **Supported formats**: .txt, .json, .pdf, .docx
+- **No content truncation**: Full file content used in analysis
+- **Table extraction**: Automatic table extraction from DOCX files
+
+### Additional File Processing
+```bash
+# Install optional dependencies for enhanced file support
+pip install PyMuPDF python-docx  # PDF and DOCX support
+```
+
 ## Test with Sample Data
+
+### Using Provided Examples
+```bash
+# Navigate to examples directory
+cd examples/
+
+# Start local server (in separate terminal)
+cd ../metadata_extractor_package/local_server
+python llm_server_ms_7b.py
+
+# Start web interface (in another terminal)
+cd ../..
+python app.py
+
+# Test scenarios:
+# 1. Upload IUNG2.csv only → Compare with iung2_metadata.json
+# 2. Upload IUNG2.csv + "Pilot 5 vocabularies.docx" → Compare with iung2_metadata_additional.json
+```
 
 ### Local Server Test
 ```bash
@@ -130,8 +169,9 @@ python app.py
 2. Start web interface: `python app.py`
 3. Navigate to `http://localhost:5000`
 4. Upload any CSV file
-5. Follow the guided workflow with enhanced column navigation
-6. Download metadata JSON
+5. **NEW**: Optionally upload additional context files (.txt, .json, .pdf, .docx)
+6. Follow the guided workflow with enhanced column navigation
+7. **NEW**: Download metadata in JSON or DQV format
 
 ## Production Deployment
 
@@ -195,6 +235,18 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 - Verify file permissions and encoding
 - Try smaller test file first
 
+### New in v1.1.2: Additional File Issues
+
+**PDF Processing Fails:**
+- Install PyMuPDF: `pip install PyMuPDF`
+- Check PDF is not password protected
+- Verify PDF file is not corrupted
+
+**DOCX Processing Fails:**
+- Install python-docx: `pip install python-docx`
+- Ensure DOCX file is valid format
+- Check file permissions
+
 ### Performance Issues
 
 **Slow LLM Responses:**
@@ -215,15 +267,17 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 3. Verify all dependencies installed correctly
 4. Try with smaller CSV files for testing
 5. Monitor GPU/CPU usage during operation
+6. **NEW**: Use `/health` endpoint to check system status
 
 ## Next Steps
 
 1. **Start with local server** for best privacy and performance
 2. **Test with sample data** to verify setup
 3. **Upload your datasets** using the enhanced web interface
-4. **Navigate between columns** using the improved interface
-5. **Export and use metadata** in your ML pipelines
-6. **Customize prompts** in `meta_data_ex_api.py` if needed
+4. **Add context files** (.txt, .json, .pdf, .docx) for better analysis
+5. **Navigate between columns** using the improved interface
+6. **Export metadata** in JSON or DQV format
+7. **Customize prompts** in `meta_data_ex_api.py` if needed
 
 ## Advanced Configuration
 
@@ -240,4 +294,10 @@ Modify generation parameters in web interface:
 - Max tokens for response length
 - Sampling parameters for generation quality
 
-Happy metadata extraction with local LLM support!
+### DQV Export Customization
+Edit `dqv_export.py` to customize:
+- Namespace mappings and URIs
+- Quality metrics and dimensions
+- RDF serialization format options
+
+Happy metadata extraction with enhanced v1.1.2 features!
