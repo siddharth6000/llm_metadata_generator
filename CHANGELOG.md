@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+## v1.1.2
+
+### Added
+- **DQV Export Support**: Added Data Quality Vocabulary (DQV) export format following W3C standards
+- **Enhanced Context File Support**: Full support for additional context files (.txt, .json, .pdf, .docx) with no content truncation
+- **Comprehensive File Processing**: Support for extracting tables from DOCX files and text from PDF files
+- **Advanced Error Handling**: Improved error handling with detailed error messages and graceful fallbacks
+- **Session Cleanup**: Automatic cleanup of old sessions to prevent memory leaks
+- **Health Check Endpoint**: Added `/health` endpoint for monitoring application status
+- **Enhanced File Upload**: Better file validation and error reporting for uploads
+- **Sample Dataset Examples**: Added IUNG2 sample dataset with vocabulary context file and comparison outputs
+
+### Enhanced
+- **Web Interface Improvements**: Better file handling with drag-and-drop support for additional context files
+- **Context Integration**: Full additional file content is now used in LLM prompts without truncation
+- **Export Options**: Two-format export system (JSON and DQV) with detailed format descriptions
+- **User Experience**: Enhanced visual feedback and progress indicators throughout the workflow
+- **Memory Management**: Improved session handling and memory cleanup for production use
+- **Documentation**: Comprehensive documentation updates with troubleshooting guides
+
+### Technical Improvements
+- **DQV Module**: Complete `dqv_export.py` module for W3C Data Quality Vocabulary export
+- **File Processing Pipeline**: Enhanced file reading with support for multiple document formats
+- **Context Handling**: Improved context extraction and integration into LLM prompts
+- **Error Recovery**: Better error handling and recovery mechanisms throughout the application
+- **Production Readiness**: Enhanced configuration for production deployments
+
+### Bug Fixes
+- Fixed session management issues with concurrent users
+- Improved file upload validation and error reporting
+- Enhanced compatibility with different file encodings
+- Better handling of edge cases in column analysis
+- Improved stability of the web interface
+
+### Performance
+- Optimized memory usage for large additional context files
+- Improved session cleanup to prevent memory leaks
+- Enhanced file processing performance for multiple document types
+- Better resource management for concurrent operations
+
 ## v1.1.1
 
 ### Added
