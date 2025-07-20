@@ -9,7 +9,7 @@ import requests
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndBytesConfig
 
-API_URL = "https://2476-143-239-73-234.ngrok-free.app/generate"
+API_URL = "https://8e83-143-239-73-234.ngrok-free.app/generate"
 
 
 def test_llm_connection():
@@ -243,8 +243,8 @@ def detect_column_type(series: pd.Series) -> str:
 
 
 def query_description_generation(column_name, stats, analysed_col_type, dataset_name, dataset_description,
-                                 dataset_sample_str, previous_columns):
-    """Query LLM for column description generation"""
+                                 dataset_sample_str, previous_columns, additional_context=""):
+    """Query LLM for column description generation with optional additional context"""
     print(f"\n📝 === DESCRIPTION GENERATION FOR COLUMN: {column_name} ===")
 
     user_prompt = (
@@ -287,16 +287,22 @@ def query_description_generation(column_name, stats, analysed_col_type, dataset_
             f"Dataset Sample:\n{dataset_sample_str}\n\n"
             f"Previously analyzed columns (name, type, description):\n" +
             "\n".join([f"- {col['name']} ({col['type']}): {col['description']}" for col in previous_columns]) + "\n\n"
-                                                                                                                f"Column to describe:\n"
-                                                                                                                f"Column Name: {column_name}\n"
-                                                                                                                f"Probable Column Type: {analysed_col_type}\n"
-                                                                                                                f"Column Stats:\n{json.dumps(stats, indent=2, default=str)}\n\n"
-                                                                                                                "Now write the real-world description of this column only."
+            f"Column to describe:\n"
+            f"Column Name: {column_name}\n"
+            f"Probable Column Type: {analysed_col_type}\n"
+            f"Column Stats:\n{json.dumps(stats, indent=2, default=str)}\n\n"
     )
 
-    print(f"🔥 About to call LLM for DESCRIPTION...")
+    # Add additional context if provided
+    if additional_context.strip():
+        user_prompt += f"Additional Information Regarding Dataset:\n{additional_context}\n"
+
+    user_prompt += "Now write the real-world description of this column only. Do not included any stats or sample values from the dataset."
+
+    print(f"About to call LLM for DESCRIPTION...")
+    print("\nUser Prompt:\n", user_prompt)
     response = query_remote_llm(user_prompt, max_tokens=300, temperature=0.7)
-    print(f"🎯 LLM DESCRIPTION Response: {response}")
+    print(f"\nLLM DESCRIPTION Response: {response}")
 
     # Handle LLM failures
     if response.startswith("[") and response.endswith("]"):
@@ -309,8 +315,8 @@ def query_description_generation(column_name, stats, analysed_col_type, dataset_
 
 
 def query_type_classification(column_name, col_description, stats, analysed_col_type, dataset_name, dataset_description,
-                              dataset_sample_str):
-    """Query LLM for column type classification with confidence scores"""
+                              dataset_sample_str, additional_context=""):
+    """Query LLM for column type classification with confidence scores and optional additional context"""
     print(f"\n🎯 === TYPE CLASSIFICATION FOR COLUMN: {column_name} ===")
     print(f"📄 Using description: {col_description[:100]}...")
 
@@ -377,12 +383,18 @@ def query_type_classification(column_name, col_description, stats, analysed_col_
         f"Column description:\n{col_description}\n"
         f"Probable column type:\n{analysed_col_type}\n"
         f"Column statistics:\n{json.dumps(stats, indent=2, default=str)}\n\n"
-        "Output:"
     )
 
-    print(f"🔥 About to call LLM for TYPE CLASSIFICATION...")
+    # Add additional context if provided
+    if additional_context.strip():
+        user_prompt += f"Additional Information Regarding Dataset:\n{additional_context}\n"
+
+    user_prompt += "Output:"
+
+    print(f"About to call LLM for TYPE CLASSIFICATION...")
+    print("\nUser Prompt:\n" + user_prompt)
     response = query_remote_llm(user_prompt, max_tokens=300, temperature=0.7)
-    print(f"🎯 LLM TYPE Response: {response}")
+    print(f"\nLLM TYPE Response: {response}")
 
     # Handle LLM failures
     if response.startswith("[") and response.endswith("]"):
@@ -477,4 +489,5 @@ if __name__ == "__main__":
     print("   http://localhost:5000")
     print()
     print("3. Upload your CSV file and follow the guided workflow")
+    print("4. Optionally upload additional context files (.txt, .json, .pdf, .docx)")
     print("=" * 60)
