@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response
 import pandas as pd
 import json
 import os
@@ -16,12 +16,75 @@ from meta_data_ex_api import (
     make_json_serializable
 )
 
+# Import DQV export functionality
+from dqv_export import create_dqv_metadata
+
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
 # Store session data in memory (in production, use Redis or database)
 sessions = {}
+
+
+def extract_tables_from_docx(path):
+    """Extract tables from DOCX files"""
+    try:
+        from docx import Document
+        doc = Document(path)
+        table_texts = []
+        for table in doc.tables:
+            rows = []
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells]
+                if any(cells):
+                    rows.append(" | ".join(cells))
+            table_texts.append("\n".join(rows))
+        return "\n\n".join(table_texts)
+    except Exception as e:
+        return f"[Error extracting tables: {e}]"
+
+
+def read_extra_file(file_path):
+    """Read and process additional context files"""
+    try:
+        if file_path.endswith(".txt"):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        elif file_path.endswith(".json"):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.dumps(json.load(f), indent=2)
+        elif file_path.endswith(".pdf"):
+            try:
+                import fitz  # PyMuPDF
+                doc = fitz.open(file_path)
+                text_parts = []
+                for page in doc:
+                    text_parts.append(page.get_text())
+                doc.close()
+                return "\n".join(text_parts)
+            except ImportError:
+                return "[PDF processing requires PyMuPDF library]"
+        elif file_path.endswith(".docx"):
+            try:
+                from docx import Document
+                doc = Document(file_path)
+                text_parts = [para.text.strip() for para in doc.paragraphs if para.text.strip()]
+                table_text = extract_tables_from_docx(file_path)
+                return "\n\n".join(text_parts + [table_text])
+            except ImportError:
+                return "[DOCX processing requires python-docx library]"
+        else:
+            return f"[Unsupported file format: {file_path}]"
+    except Exception as e:
+        return f"[Error reading extra file: {e}]"
+
+
+def get_prompt_context(extra_content):
+    """Format additional context for prompts"""
+    if extra_content and extra_content.strip():
+        return f"\n\nAdditional file context:\n{extra_content}\n"
+    return ""
 
 
 @app.route('/')
@@ -32,21 +95,21 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handle CSV file upload and initial processing"""
+    """Handle CSV file upload and optional additional file"""
     try:
         if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
+            return jsonify({'error': 'No CSV file provided'}), 400
 
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
+        csv_file = request.files['file']
+        if csv_file.filename == '':
+            return jsonify({'error': 'No CSV file selected'}), 400
 
-        if not file.filename.lower().endswith('.csv'):
-            return jsonify({'error': 'Only CSV files are allowed'}), 400
+        if not csv_file.filename.lower().endswith('.csv'):
+            return jsonify({'error': 'Main file must be a CSV'}), 400
 
         # Read CSV data
         try:
-            dataset = pd.read_csv(file)
+            dataset = pd.read_csv(csv_file)
         except Exception as e:
             return jsonify({'error': f'Error reading CSV file: {str(e)}'}), 400
 
@@ -56,28 +119,64 @@ def upload_file():
         # Generate session ID
         session_id = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
 
-        # Store dataset in session
-        sessions[session_id] = {
+        # Initialize session data
+        session_data = {
             'dataset': dataset,
-            'filename': secure_filename(file.filename),
+            'filename': secure_filename(csv_file.filename),
             'columns_processed': [],
-            'metadata': {}
+            'metadata': {},
+            'extra_content': '',
+            'analysis_results': {}  # Track analysis results for previous columns context
         }
+
+        # Handle optional additional file
+        if 'extra_file' in request.files:
+            extra_file = request.files['extra_file']
+            if extra_file.filename != '':
+                # Save the extra file temporarily
+                extra_filename = secure_filename(extra_file.filename)
+                extra_filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{extra_filename}")
+                extra_file.save(extra_filepath)
+
+                # Process the extra file
+                extra_content = read_extra_file(extra_filepath)
+                session_data['extra_content'] = extra_content
+                session_data['extra_filename'] = extra_filename
+
+                # Clean up the temporary file
+                try:
+                    os.remove(extra_filepath)
+                except:
+                    pass
+
+        # Store dataset in session
+        sessions[session_id] = session_data
 
         # Return file info and preview
         preview_data = dataset.head().fillna('').to_dict('records')
 
-        return jsonify({
+        response_data = {
             'session_id': session_id,
-            'filename': file.filename,
+            'filename': csv_file.filename,
             'rows': len(dataset),
             'columns': len(dataset.columns),
             'column_names': list(dataset.columns),
             'preview': preview_data
-        })
+        }
+
+        # Add extra file info if present
+        if session_data['extra_content']:
+            response_data['extra_file'] = {
+                'filename': session_data.get('extra_filename', 'unknown'),
+                'content_length': len(session_data['extra_content']),
+                'content_preview': session_data['extra_content'][:200] + '...' if len(
+                    session_data['extra_content']) > 200 else session_data['extra_content']
+            }
+
+        return jsonify(response_data)
 
     except Exception as e:
-        return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+        return jsonify({'error': f'Error processing files: {str(e)}'}), 500
 
 
 @app.route('/set_dataset_info', methods=['POST'])
@@ -135,9 +234,25 @@ def analyze_column_endpoint():
         dataset_name = session_data['metadata'].get('dataset_name', 'Unknown Dataset')
         dataset_description = session_data['metadata'].get('dataset_description', 'No description')
         dataset_sample_str = dataset.head().to_string(index=False)
-        previous_columns = session_data.get('columns_processed', [])
+
+        # Get previously analyzed columns from session (temporary analysis results)
+        previous_columns = []
+        if 'analysis_results' in session_data:
+            for col_name, col_data in session_data['analysis_results'].items():
+                if col_name != column_name and col_data.get('description') and col_data.get('type'):
+                    previous_columns.append({
+                        'name': col_name,
+                        'type': col_data.get('type'),
+                        'description': col_data.get('description')
+                    })
+
+        # Get additional context from extra file
+        extra_content = session_data.get('extra_content', '')
+        prompt_context = get_prompt_context(extra_content)
 
         print(f"\n🔄 Starting analysis for column: {column_name}")
+        if extra_content:
+            print(f"📄 Using additional context from: {session_data.get('extra_filename', 'unknown file')}")
 
         # FIRST LLM CALL: Generate description
         print("📝 LLM Call #1: Generating description...")
@@ -145,7 +260,7 @@ def analyze_column_endpoint():
             description = query_description_generation(
                 column_name, stats, detected_type,
                 dataset_name, dataset_description, dataset_sample_str,
-                previous_columns
+                previous_columns, prompt_context
             )
             print(f"✅ Description generated: {description[:100]}...")
         except Exception as e:
@@ -157,7 +272,8 @@ def analyze_column_endpoint():
         try:
             llm_result = query_type_classification(
                 column_name, description, stats, detected_type,
-                dataset_name, dataset_description, dataset_sample_str
+                dataset_name, dataset_description, dataset_sample_str,
+                prompt_context
             )
             type_confidence = llm_result.get('confidence', {})
             suggested_type = llm_result.get('suggested_type', detected_type)
@@ -175,6 +291,16 @@ def analyze_column_endpoint():
 
         # Clean stats for JSON serialization
         clean_stats = json.loads(json.dumps(stats, default=make_json_serializable))
+
+        # Store analysis results in session for future reference
+        if 'analysis_results' not in session_data:
+            session_data['analysis_results'] = {}
+
+        session_data['analysis_results'][column_name] = {
+            'description': description,
+            'type': suggested_type,
+            'stats': clean_stats
+        }
 
         return jsonify({
             'column_name': column_name,
@@ -217,6 +343,21 @@ def reanalyze_type():
         dataset_description = session_data['metadata'].get('dataset_description', 'No description')
         dataset_sample_str = dataset.head().to_string(index=False)
 
+        # Get previously analyzed columns from session
+        previous_columns = []
+        if 'analysis_results' in session_data:
+            for col_name, col_data in session_data['analysis_results'].items():
+                if col_name != column_name and col_data.get('description') and col_data.get('type'):
+                    previous_columns.append({
+                        'name': col_name,
+                        'type': col_data.get('type'),
+                        'description': col_data.get('description')
+                    })
+
+        # Get additional context from extra file
+        extra_content = session_data.get('extra_content', '')
+        prompt_context = get_prompt_context(extra_content)
+
         print(f"\n🔄 Reanalyzing type for column: {column_name}")
         print(f"📝 Updated description: {updated_description[:100]}...")
 
@@ -225,10 +366,18 @@ def reanalyze_type():
         try:
             llm_result = query_type_classification(
                 column_name, updated_description, stats, detected_type,
-                dataset_name, dataset_description, dataset_sample_str
+                dataset_name, dataset_description, dataset_sample_str,
+                prompt_context
             )
             suggested_type = llm_result.get('suggested_type', detected_type)
             print(f"✅ Type reclassified as: {suggested_type}")
+
+            # Update stored analysis results
+            if 'analysis_results' not in session_data:
+                session_data['analysis_results'] = {}
+            if column_name in session_data['analysis_results']:
+                session_data['analysis_results'][column_name]['description'] = updated_description
+                session_data['analysis_results'][column_name]['type'] = suggested_type
         except Exception as e:
             print(f"❌ LLM type classification failed: {e}")
             # Fallback to rule-based detection
@@ -320,6 +469,7 @@ def download_metadata():
     try:
         data = request.json
         session_id = data.get('session_id')
+        format_type = data.get('format', 'json')  # 'json' or 'dqv'
 
         if session_id not in sessions:
             return jsonify({'error': 'Invalid session'}), 400
@@ -335,15 +485,46 @@ def download_metadata():
         # Clean metadata for JSON serialization
         clean_metadata = json.loads(json.dumps(metadata, default=make_json_serializable))
 
-        # Create temporary file
+        # Get dataset name and create safe filename
         dataset_name = metadata.get('dataset_name', 'dataset')
-        filename = f"{dataset_name.replace(' ', '_').lower()}_metadata.json"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{filename}")
+        safe_dataset_name = dataset_name.replace(' ', '_').replace('-', '_').lower()
+        # Remove any other potentially problematic characters
+        import re
+        safe_dataset_name = re.sub(r'[^\w\-_]', '', safe_dataset_name)
 
-        with open(filepath, 'w') as f:
-            json.dump(clean_metadata, f, indent=4)
+        if format_type == 'dqv':
+            # Generate DQV format
+            try:
+                dqv_content = create_dqv_metadata(clean_metadata)
+                filename = f"{safe_dataset_name}_metadata.ttl"
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{filename}")
 
-        return send_file(filepath, as_attachment=True, download_name=filename)
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(dqv_content)
+
+                return send_file(
+                    filepath,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='text/turtle'
+                )
+
+            except Exception as e:
+                return jsonify({'error': f'Error generating DQV format: {str(e)}'}), 500
+        else:
+            # Generate JSON format (default)
+            filename = f"{safe_dataset_name}_metadata.json"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{filename}")
+
+            with open(filepath, 'w') as f:
+                json.dump(clean_metadata, f, indent=4)
+
+            return send_file(
+                filepath,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/json'
+            )
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -355,7 +536,9 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'active_sessions': len(sessions),
-        'version': '1.0.0'
+        'version': '1.0.0',
+        'supported_formats': ['json', 'dqv'],
+        'supported_extra_files': ['.txt', '.json', '.pdf', '.docx']
     })
 
 
@@ -409,18 +592,23 @@ if __name__ == '__main__':
     print("   • AI-powered column description generation (LLM Call #1)")
     print("   • AI-powered column type detection (LLM Call #2)")
     print("   • Interactive description updates (LLM Call #3)")
+    print("   • Full additional file context support (no truncation)")
     print("   • Column navigation (back/forth between columns)")
-    print("   • Professional metadata export")
+    print("   • Professional metadata export (JSON & DQV formats)")
     print()
     print("🔧 Configuration:")
     print(f"   • Max file size: {app.config['MAX_CONTENT_LENGTH'] // 1024 // 1024}MB")
     print("   • LLM API: Configured in meta_data_ex_api.py")
+    print("   • Export formats: JSON, DQV (W3C Data Quality Vocabulary)")
+    print("   • Supported extra files: .txt, .json, .pdf, .docx")
     print()
     print("Starting server...")
     print("   • Web interface: http://localhost:5000")
     print("   • Health check: http://localhost:5000/health")
     print()
     print("⚠️  Make sure your LLM server is running for AI features!")
+    print("📄 Optional: Upload additional context files (.txt, .json, .pdf, .docx)")
+    print("💡 No content truncation - full file context will be used")
     print("=" * 60)
 
     # Run the Flask application
