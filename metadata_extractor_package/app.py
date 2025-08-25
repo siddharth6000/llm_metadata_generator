@@ -20,7 +20,7 @@ from meta_data_ex_api import (
 from dqv_export import create_dqv_metadata
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
 # Store session data in memory (in production, use Redis or database)
@@ -74,6 +74,25 @@ def read_extra_file(file_path):
                 return "\n\n".join(text_parts + [table_text])
             except ImportError:
                 return "[DOCX processing requires python-docx library]"
+        elif file_path.endswith(".xlsx"):
+            try:
+                table_text = extract_tables_from_docx(file_path)
+                return "\n\n".join(table_text)
+                #df = pd.read_excel(file_path)
+                #return df.to_csv(index=False)
+            except Exception as e:
+                return f"[Error reading Excel file: {e}]"
+        elif file_path.endswith(".csv"):
+            try:
+                table_text = extract_tables_from_docx(file_path)
+                return "\n\n".join(table_text)
+                #df = pd.read_excel(file_path)
+                #return df.to_csv(index=False)
+            except Exception as e:
+                return f"[Error reading Excel file: {e}]"
+
+
+
         else:
             return f"[Unsupported file format: {file_path}]"
     except Exception as e:
@@ -536,7 +555,7 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'active_sessions': len(sessions),
-        'version': '1.0.0',
+        'version': '1.1.3',
         'supported_formats': ['json', 'dqv'],
         'supported_extra_files': ['.txt', '.json', '.pdf', '.docx']
     })
@@ -545,7 +564,7 @@ def health_check():
 @app.errorhandler(413)
 def too_large(e):
     """Handle file too large error"""
-    return jsonify({'error': 'File too large. Maximum size is 16MB.'}), 413
+    return jsonify({'error': 'File too large. Maximum size is 20MB.'}), 413
 
 
 @app.errorhandler(404)
