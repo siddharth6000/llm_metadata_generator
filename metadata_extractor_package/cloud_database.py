@@ -20,8 +20,8 @@ class CloudDatabaseManager:
     """Cloud Database Manager for Supabase integration"""
 
     def __init__(self, supabase_url: str, supabase_key: str):
-        if not SUPABASE_AVAILABLE:
-            raise ImportError("Supabase package not available. Install with: pip install supabase")
+        #if not SUPABASE_AVAILABLE:
+         #   raise ImportError("Supabase package not available. Install with: pip install supabase")
 
         self.client: Client = create_client(supabase_url, supabase_key)
         self.bucket_name = "dataset-metadata"

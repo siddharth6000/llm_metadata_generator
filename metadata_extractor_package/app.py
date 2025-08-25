@@ -19,7 +19,6 @@ from metadata_export import export_json, export_dqv, export_zip
 # Import cloud database manager
 try:
     from cloud_database import CloudDatabaseManager
-
     CLOUD_DB_AVAILABLE = True
 except ImportError:
     CLOUD_DB_AVAILABLE = False
@@ -27,7 +26,10 @@ except ImportError:
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Load configuration (no more .env files!)
 CONFIG = load_config()
+
 app.config['MAX_CONTENT_LENGTH'] = CONFIG['app']['max_file_size_mb'] * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
@@ -41,6 +43,8 @@ if CLOUD_DB_AVAILABLE and is_database_enabled(CONFIG):
         if supabase_url and supabase_key:
             cloud_db_manager = CloudDatabaseManager(supabase_url, supabase_key)
             print(f"✅ Cloud database initialized")
+        else:
+            print("⚠️ Cloud database credentials not configured")
     except Exception as e:
         print(f"❌ Cloud database failed: {e}")
 
@@ -407,7 +411,7 @@ def download_metadata():
         return handle_error(f'Download failed: {str(e)}')
 
 
-# Cloud database routes
+# Cloud database routes (if enabled)
 @app.route('/cloud_datasets', methods=['GET'])
 def get_cloud_datasets():
     if not cloud_db_manager:
@@ -551,10 +555,17 @@ def health_check():
             'cloud_db_status': 'connected' if cloud_db_status else 'disconnected',
             'cloud_db_info': cloud_db_info,
             'auto_save_enabled': is_auto_save_enabled(CONFIG),
-            'version': '1.2.0'
+            'version': '2.1.0'
         })
     except Exception as e:
         return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
+
+@app.route("/supabase-health")
+def supabase_health():
+    if not cloud_db_manager:
+        return jsonify({'error': 'Cloud database not available'}), 400
+    return cloud_db_manager.health_check()
 
 
 # Error handlers
@@ -581,8 +592,20 @@ if __name__ == '__main__':
     print(f"📁 Max file size: {CONFIG['app']['max_file_size_mb']}MB")
     print(f"☁️ Cloud Database: {'✅ Enabled' if cloud_db_manager else '❌ Disabled'}")
     print(f"🔄 Auto-Save: {'✅ Enabled' if is_auto_save_enabled(CONFIG) else '❌ Disabled'}")
-    print(f"🤖 LLM Status: {'✅ Connected' if test_llm_connection(CONFIG, openai_client) else '❌ Failed'}")
-    print("🚀 Starting server at http://localhost:5000")
-    print("=" * 60)
+
+    # Quick LLM test
+    print("🧪 Testing LLM connection...")
+    llm_works = test_llm_connection(CONFIG, openai_client)
+
+    if llm_works:
+        print("🤖 LLM Status: ✅ Connected")
+        print("🚀 Starting server at http://localhost:5000")
+        print("=" * 60)
+        app.run(debug=CONFIG['app']['debug'], host='0.0.0.0', port=5000)
+    else:
+        print("🤖 LLM Status: ❌ Failed")
+        print("\n💀 Cannot start - LLM connection failed!")
+        print("Please check your API key/endpoint in config.yaml")
+        sys.exit(1)
 
     app.run(debug=CONFIG['app']['debug'], host='0.0.0.0', port=5000)
