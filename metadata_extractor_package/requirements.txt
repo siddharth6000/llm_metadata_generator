@@ -1,87 +1,37 @@
-# LLM Metadata Extractor v1.2.0 Requirements
+# Core Flask dependencies
+Flask==2.3.3
+Werkzeug==2.3.7
+gunicorn==21.2.0
+python-dotenv==1.0.0
 
-# Core Web Framework
-Flask==3.0.0
-Werkzeug==3.0.1
-
-# Local LLM Server Dependencies
-fastapi>=0.68.0
-uvicorn>=0.15.0
-pydantic>=1.8.0
-
-# Data Processing and Analysis
-pandas==2.1.4
+# Data processing
+pandas==2.1.1
 numpy==1.24.3
 
-# HTTP Requests for LLM API calls
+# Configuration and utilities
+PyYAML==6.0.1
 requests==2.31.0
 
-# AI/ML Framework for Local LLM
-transformers==4.36.2
-torch==2.1.2
+# Semantic web and metadata
+rdflib==6.3.2
 
-# GPU Memory Optimization (Recommended for Local LLM)
-accelerate>=0.20.0
-bitsandbytes>=0.39.0
+# File processing
+python-docx==0.8.11
+PyMuPDF==1.23.5
+openpyxl==3.1.2
 
-# DQV Export Support (v1.1.2)
-rdflib>=6.0.0
+# AI/LLM providers
+openai==1.51.0
 
-# Additional File Format Support (v1.1.2+)
-PyMuPDF>=1.21.0      # PDF Processing
-python-docx>=0.8.11  # DOCX Processing  
-psutil>=5.8.0        # System Monitoring
+# Supabase - install as a group to avoid conflicts
+supabase==1.0.3
 
-# Configuration Management (v1.1.3+)
-PyYAML>=6.0          # YAML configuration file support
+# Additional utilities
+python-dateutil==2.8.2
+urllib3==1.26.16
+setuptools>=65.0.0
 
-# NEW in v1.2.0: Batch Processing and Async Operations
-concurrent.futures>=3.1.1    # Batch processing support
-asyncio>=3.4.3              # Async operations
-multiprocessing>=1.0.0      # Parallel processing
-
-# NEW in v1.2.0: Enhanced System Monitoring and Diagnostics
-cpuinfo>=9.0.0              # CPU information gathering
-GPUtil>=1.4.0               # GPU monitoring (optional)
-
-# NEW in v1.2.0: Enhanced File Format Support
-openpyxl>=3.0.0             # Enhanced Excel support (.xlsx files)
-xlrd>=2.0.0                 # Excel file reading (.xls files)
-chardet>=5.0.0              # Character encoding detection
-
-# NEW in v1.2.0: Cloud Integration (Optional)
-boto3>=1.26.0               # AWS S3 integration
-google-cloud-storage>=2.5.0 # Google Cloud Storage integration
-azure-storage-blob>=12.14.0 # Azure Blob Storage integration
-
-# NEW in v1.2.0: Enhanced Logging and Monitoring
-structlog>=23.1.0           # Structured logging
-colorlog>=6.7.0             # Colored console logging
-
-# NEW in v1.2.0: Progress Tracking and UI Enhancements
-tqdm>=4.65.0                # Progress bars for CLI
-rich>=13.3.0                # Rich text and progress display
-click>=8.1.0                # Enhanced CLI interface
-
-# NEW in v1.2.0: Data Validation and Security
-jsonschema>=4.17.0          # JSON schema validation
-cryptography>=40.0.0        # Encryption and secure storage
-
-# NEW in v1.2.0: Performance and Optimization
-cachetools>=5.3.0           # Caching utilities
-joblib>=1.2.0               # Efficient serialization and parallel computing
-
-# NEW in v1.2.0: HTTP Client Enhancements
-httpx>=0.24.0               # Modern async HTTP client
-aiohttp>=3.8.0              # Async HTTP client/server
-aiofiles>=23.1.0            # Async file operations
-
-# Optional: OpenAI API Support (v1.1.3+)
-# openai>=1.0.0       # Uncomment if using OpenAI provider
-
-# Optional Dependencies for Enhanced Features
-# pytest>=7.0.0       # Testing
-# black>=22.0.0        # Code formatting
-# flake8>=4.0.0        # Linting
-# gunicorn>=20.1.0     # Production WSGI server
-# redis>=4.0.0         # Production session storage
+# Security and compatibility
+cryptography>=41.0.0
+certifi>=2023.7.22
+typing-extensions>=4.8.0
