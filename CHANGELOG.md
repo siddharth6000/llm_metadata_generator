@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## v1.2.1 - 2025-08-26
+## v1.2.1
 
 ### Added
 - **Enhanced Cloud Database Integration**: Improved Supabase integration with better error handling and connection management
