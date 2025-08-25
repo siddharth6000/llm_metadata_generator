@@ -1,10 +1,8 @@
-# LLM Metadata Extractor v1.2.0 Configuration
+# LLM Metadata Extractor v1.2.1 Configuration
 # Choose between 'openai' or 'local' LLM provider
-
 llm:
   # Provider: 'openai' or 'local'
   provider: "openai"  # Change to "local" to use your hosted LLM
-
   # OpenAI Configuration
   openai:
     api_key: "your-openai-api-key-here"  # Or use environment variable OPENAI_API_KEY
@@ -12,7 +10,6 @@ llm:
     max_tokens: 300
     temperature: 0.7
     timeout: 30  # seconds
-
   # Local LLM Configuration
   local:
     api_url: "http://localhost:8000/generate"
@@ -26,7 +23,7 @@ llm:
 # Application Settings
 app:
   debug: false
-  max_file_size_mb: 20
+  max_file_size_mb: 30  # Updated for v1.2.1
   session_cleanup_hours: 1
 
 # Cloud Database Configuration
@@ -43,4 +40,4 @@ database:
 # Logging
 logging:
   level: "INFO"  # DEBUG, INFO, WARNING, ERROR
-  show_prompts: false  # Set to true to show detailed prompt logging
+  show_prompts: true  # Set to true to show detailed prompt logging
