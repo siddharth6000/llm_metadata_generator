@@ -4,28 +4,189 @@ import json
 import random
 import sys
 import re
-import torch
-import requests
 import numpy as np
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndBytesConfig
+import os
+import yaml
+import requests
+from pathlib import Path
 
-API_URL = "https://8e83-143-239-73-234.ngrok-free.app/generate"
+# Try to import OpenAI (optional)
+try:
+    from openai import OpenAI
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("⚠️ OpenAI library not installed. Install with: pip install openai")
+
+
+# Load configuration
+def load_config():
+    """Load configuration from config.yaml"""
+    config_path = Path("config.yaml")
+    if not config_path.exists():
+        print("❌ config.yaml not found. Creating default configuration...")
+        create_default_config()
+
+    try:
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+        return config
+    except Exception as e:
+        print(f"❌ Error loading config.yaml: {e}")
+        print("Using default configuration...")
+        return get_default_config()
+
+
+def create_default_config():
+    """Create a default config.yaml file"""
+    default_config = get_default_config()
+    try:
+        with open("config.yaml", 'w') as file:
+            yaml.dump(default_config, file, default_flow_style=False, indent=2)
+        print("✅ Created default config.yaml file. Please update it with your settings.")
+    except Exception as e:
+        print(f"❌ Could not create config.yaml: {e}")
+
+
+def get_default_config():
+    """Get default configuration"""
+    return {
+        'llm': {
+            'provider': 'openai',
+            'openai': {
+                'api_key': os.getenv('OPENAI_API_KEY', 'your-openai-api-key-here'),
+                'model': 'gpt-3.5-turbo',
+                'max_tokens': 300,
+                'temperature': 0.7,
+                'timeout': 30
+            },
+            'local': {
+                'api_url': 'https://your-ngrok-url.ngrok-free.app/generate',
+                'max_tokens': 300,
+                'temperature': 0.7,
+                'timeout': 30,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            }
+        },
+        'app': {
+            'debug': True,
+            'max_file_size_mb': 16,
+            'session_cleanup_hours': 1
+        },
+        'logging': {
+            'level': 'INFO',
+            'show_prompts': True
+        }
+    }
+
+
+# Global configuration
+CONFIG = load_config()
+
+# Initialize OpenAI client if using OpenAI provider
+openai_client = None
+if CONFIG['llm']['provider'] == 'openai' and OPENAI_AVAILABLE:
+    try:
+        api_key = CONFIG['llm']['openai']['api_key']
+        if api_key == 'your-openai-api-key-here':
+            # Try environment variable
+            api_key = os.getenv('OPENAI_API_KEY')
+
+        if api_key:
+            openai_client = OpenAI(api_key=api_key)
+        else:
+            print("❌ OpenAI API key not found. Please set OPENAI_API_KEY environment variable or update config.yaml")
+    except Exception as e:
+        print(f"❌ Error initializing OpenAI client: {e}")
 
 
 def test_llm_connection():
-    """Test if LLM API is working"""
-    print("🧪 Testing LLM connection...")
-    test_prompt = "Hello, please respond with 'LLM is working correctly'."
-    response = query_remote_llm(test_prompt, max_tokens=50, temperature=0.1)
+    """Test if the configured LLM is working"""
+    provider = CONFIG['llm']['provider']
+    print(f"🧪 Testing {provider.upper()} connection...")
+
+    test_prompt = f"Hello, please respond with '{provider.upper()} is working correctly'."
+    response = query_llm(test_prompt, max_tokens=50, temperature=0.1)
     print(f"🧪 Test response: {response}")
     return not (response.startswith("[") and response.endswith("]"))
 
 
-def query_remote_llm(prompt, max_tokens=300, temperature=0.7):
-    """Query the remote LLM server for AI responses"""
-    print(f"\n🌐 Making LLM API call to: {API_URL}")
-    print(f"📝 Prompt length: {len(prompt)} characters")
-    print(f"⚙️  Parameters: max_tokens={max_tokens}, temperature={temperature}")
+def query_llm(prompt, max_tokens=None, temperature=None):
+    """
+    Universal LLM query function that routes to the configured provider
+    """
+    provider = CONFIG['llm']['provider']
+
+    # Use config defaults if not specified
+    if max_tokens is None:
+        max_tokens = CONFIG['llm'][provider]['max_tokens']
+    if temperature is None:
+        temperature = CONFIG['llm'][provider]['temperature']
+
+    if CONFIG['logging']['show_prompts']:
+        print(f"\n🌐 Making {provider.upper()} API call...")
+        print(f"📝 Prompt length: {len(prompt)} characters")
+        print(f"⚙️  Parameters: max_tokens={max_tokens}, temperature={temperature}")
+
+    if provider == 'openai':
+        return query_openai_llm(prompt, max_tokens, temperature)
+    elif provider == 'local':
+        return query_local_llm(prompt, max_tokens, temperature)
+    else:
+        return f"[Error: Unknown LLM provider '{provider}']"
+
+
+def query_openai_llm(prompt, max_tokens=300, temperature=0.7):
+    """Query OpenAI API for AI responses"""
+    if not OPENAI_AVAILABLE:
+        return "[Error: OpenAI library not installed]"
+
+    if not openai_client:
+        return "[Error: OpenAI client not initialized]"
+
+    try:
+        config = CONFIG['llm']['openai']
+
+        if CONFIG['logging']['show_prompts']:
+            print(f"📤 Sending request to OpenAI ({config['model']})...")
+
+        response = openai_client.chat.completions.create(
+            model=config['model'],
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=config['timeout']
+        )
+
+        if CONFIG['logging']['show_prompts']:
+            print(f"📊 Response received successfully")
+
+        llm_response = response.choices[0].message.content.strip()
+
+        if not llm_response:
+            print(f"⚠️  Warning: Empty response from OpenAI")
+            return "[Empty OpenAI response]"
+
+        if CONFIG['logging']['show_prompts']:
+            print(f"✅ Final OpenAI response: {llm_response[:200]}...")
+        return llm_response
+
+    except Exception as e:
+        print(f"❌ OpenAI API error: {e}")
+        return f"[OpenAI API error: {str(e)}]"
+
+
+def query_local_llm(prompt, max_tokens=300, temperature=0.7):
+    """Query the local/hosted LLM server for AI responses"""
+    config = CONFIG['llm']['local']
+    api_url = config['api_url']
+
+    if CONFIG['logging']['show_prompts']:
+        print(f"📤 Sending request to local LLM: {api_url}")
 
     try:
         payload = {
@@ -34,16 +195,17 @@ def query_remote_llm(prompt, max_tokens=300, temperature=0.7):
             "temperature": temperature
         }
 
-        headers = {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'  # Skip ngrok browser warning
-        }
+        headers = config.get('headers', {})
 
-        print(f"📤 Sending request...")
-        response = requests.post(API_URL, json=payload, headers=headers, timeout=30)
+        response = requests.post(
+            api_url,
+            json=payload,
+            headers=headers,
+            timeout=config['timeout']
+        )
 
-        print(f"📊 Response status: {response.status_code}")
-        print(f"📋 Response headers: {dict(response.headers)}")
+        if CONFIG['logging']['show_prompts']:
+            print(f"📊 Response status: {response.status_code}")
 
         if response.status_code != 200:
             print(f"❌ HTTP Error: {response.status_code}")
@@ -52,14 +214,15 @@ def query_remote_llm(prompt, max_tokens=300, temperature=0.7):
 
         # Try to get the raw response text first
         raw_content = response.text
-        print(f"📄 Raw response content: {raw_content}")
+        if CONFIG['logging']['show_prompts']:
+            print(f"📄 Raw response content: {raw_content}")
 
         try:
             response_data = response.json()
-            print(f"📦 Parsed JSON response: {response_data}")
+            if CONFIG['logging']['show_prompts']:
+                print(f"📦 Parsed JSON response: {response_data}")
         except json.JSONDecodeError as e:
             print(f"❌ Failed to parse JSON: {e}")
-            print(f"📄 Raw content: {raw_content}")
             return "[JSON parsing failed]"
 
         # Try different possible response formats
@@ -68,60 +231,47 @@ def query_remote_llm(prompt, max_tokens=300, temperature=0.7):
         # Format 1: {"response": "text"}
         if "response" in response_data:
             llm_response = response_data["response"]
-            print(f"✅ Found response in 'response' key")
-
         # Format 2: {"generated_text": "text"}
         elif "generated_text" in response_data:
             llm_response = response_data["generated_text"]
-            print(f"✅ Found response in 'generated_text' key")
-
         # Format 3: {"text": "text"}
         elif "text" in response_data:
             llm_response = response_data["text"]
-            print(f"✅ Found response in 'text' key")
-
         # Format 4: {"output": "text"}
         elif "output" in response_data:
             llm_response = response_data["output"]
-            print(f"✅ Found response in 'output' key")
-
         # Format 5: Direct string response
         elif isinstance(response_data, str):
             llm_response = response_data
-            print(f"✅ Response is direct string")
-
         # Format 6: List with text
         elif isinstance(response_data, list) and len(response_data) > 0:
             if isinstance(response_data[0], dict) and "generated_text" in response_data[0]:
                 llm_response = response_data[0]["generated_text"]
-                print(f"✅ Found response in list[0]['generated_text']")
             elif isinstance(response_data[0], str):
                 llm_response = response_data[0]
-                print(f"✅ Found response in list[0]")
 
         if llm_response is None:
             print(f"❌ Could not find response in any expected format")
-            print(
-                f"📊 Available keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'Not a dict'}")
             return "[Could not extract response]"
 
         llm_response = str(llm_response).strip()
 
         if not llm_response:
-            print(f"⚠️  Warning: Empty response from LLM")
+            print(f"⚠️  Warning: Empty response from local LLM")
             return "[Empty LLM response]"
 
-        print(f"✅ Final LLM response: {llm_response[:200]}...")
+        if CONFIG['logging']['show_prompts']:
+            print(f"✅ Final local LLM response: {llm_response[:200]}...")
         return llm_response
 
     except requests.exceptions.Timeout as e:
-        print(f"⏰ LLM server timeout: {e}")
+        print(f"⏰ Local LLM server timeout: {e}")
         return "[LLM server timeout]"
     except requests.exceptions.ConnectionError as e:
-        print(f"🔌 LLM server connection error: {e}")
+        print(f"🔌 Local LLM server connection error: {e}")
         return "[LLM server connection failed]"
     except Exception as e:
-        print(f"❌ Unexpected LLM error: {e}")
+        print(f"❌ Unexpected local LLM error: {e}")
         return "[LLM server failed]"
 
 
@@ -134,7 +284,7 @@ def analyze_numeric_column(column_data):
         return {
             "type": str(column_data.dtype),
             "unique_values": int(column_data.nunique()),
-            "sample_unique_values": [str(x) for x in unique_sample],  # Convert to strings for JSON
+            "sample_unique_values": [str(x) for x in unique_sample],
             "missing_values": int(column_data.isnull().sum()),
             "mean": float(column_data.mean()) if not pd.isna(column_data.mean()) else None,
             "std": float(column_data.std()) if not pd.isna(column_data.std()) else None,
@@ -171,7 +321,7 @@ def analyze_categorical_column(column_data):
         return {
             "type": str(column_data.dtype),
             "unique_values": int(column_data.nunique()),
-            "sample_unique_values": [str(x) for x in unique_sample],  # Convert to strings for JSON
+            "sample_unique_values": [str(x) for x in unique_sample],
             "missing_values": int(column_data.isnull().sum()),
             "top_value": str(top_value) if top_value is not None else None,
             "top_freq": top_freq
@@ -287,10 +437,10 @@ def query_description_generation(column_name, stats, analysed_col_type, dataset_
             f"Dataset Sample:\n{dataset_sample_str}\n\n"
             f"Previously analyzed columns (name, type, description):\n" +
             "\n".join([f"- {col['name']} ({col['type']}): {col['description']}" for col in previous_columns]) + "\n\n"
-            f"Column to describe:\n"
-            f"Column Name: {column_name}\n"
-            f"Probable Column Type: {analysed_col_type}\n"
-            f"Column Stats:\n{json.dumps(stats, indent=2, default=str)}\n\n"
+                                                                                                                f"Column to describe:\n"
+                                                                                                                f"Column Name: {column_name}\n"
+                                                                                                                f"Probable Column Type: {analysed_col_type}\n"
+                                                                                                                f"Column Stats:\n{json.dumps(stats, indent=2, default=str)}\n\n"
     )
 
     # Add additional context if provided
@@ -299,14 +449,16 @@ def query_description_generation(column_name, stats, analysed_col_type, dataset_
 
     user_prompt += "Now write the real-world description of this column only. Do not included any stats or sample values from the dataset."
 
-    print(f"About to call LLM for DESCRIPTION...")
-    print("\nUser Prompt:\n", user_prompt)
-    response = query_remote_llm(user_prompt, max_tokens=300, temperature=0.7)
-    print(f"\nLLM DESCRIPTION Response: {response}")
+    print(f"About to call {CONFIG['llm']['provider'].upper()} for DESCRIPTION...")
+    if CONFIG['logging']['show_prompts']:
+        print("\nUser Prompt:\n", user_prompt)
+
+    response = query_llm(user_prompt)
+    print(f"\n{CONFIG['llm']['provider'].upper()} DESCRIPTION Response: {response}")
 
     # Handle LLM failures
     if response.startswith("[") and response.endswith("]"):
-        print(f"❌ LLM call failed: {response}")
+        print(f"❌ {CONFIG['llm']['provider'].upper()} call failed: {response}")
         fallback_description = f"This column represents {column_name} data in the dataset."
         print(f"🔄 Using fallback description: {fallback_description}")
         return fallback_description
@@ -391,14 +543,16 @@ def query_type_classification(column_name, col_description, stats, analysed_col_
 
     user_prompt += "Output:"
 
-    print(f"About to call LLM for TYPE CLASSIFICATION...")
-    print("\nUser Prompt:\n" + user_prompt)
-    response = query_remote_llm(user_prompt, max_tokens=300, temperature=0.7)
-    print(f"\nLLM TYPE Response: {response}")
+    print(f"About to call {CONFIG['llm']['provider'].upper()} for TYPE CLASSIFICATION...")
+    if CONFIG['logging']['show_prompts']:
+        print("\nUser Prompt:\n" + user_prompt)
+
+    response = query_llm(user_prompt)
+    print(f"\n{CONFIG['llm']['provider'].upper()} TYPE Response: {response}")
 
     # Handle LLM failures
     if response.startswith("[") and response.endswith("]"):
-        print(f"❌ LLM call failed: {response}")
+        print(f"❌ {CONFIG['llm']['provider'].upper()} call failed: {response}")
         fallback_confidence = {
             "binary": 0.0, "categorical": 0.0, "ordinal": 0.0,
             "continuous": 0.0, "identifier": 0.0, "free_text": 0.0
@@ -469,10 +623,47 @@ def save_metadata(dataset_name, dataset_description, column_descriptions):
     print(f"\nMetadata saved to '{filename}'")
 
 
+def get_config_info():
+    """Get current configuration information"""
+    provider = CONFIG['llm']['provider']
+    if provider == 'openai':
+        model = CONFIG['llm']['openai']['model']
+        return f"OpenAI ({model})"
+    elif provider == 'local':
+        url = CONFIG['llm']['local']['api_url']
+        return f"Local LLM ({url})"
+    else:
+        return f"Unknown ({provider})"
+
+
 if __name__ == "__main__":
     # Test LLM connection
-    if len(sys.argv) > 1 and sys.argv[1] == "--test-llm":
+    if len(sys.argv) > 1 and sys.argv[1] in ["--test-llm", "--test-openai", "--test-local"]:
         test_llm_connection()
+        exit(0)
+
+    # Show configuration
+    if len(sys.argv) > 1 and sys.argv[1] == "--config":
+        print("=" * 60)
+        print("Current Configuration:")
+        print("=" * 60)
+        print(f"LLM Provider: {CONFIG['llm']['provider']}")
+        print(f"Configuration: {get_config_info()}")
+        if CONFIG['llm']['provider'] == 'openai':
+            config = CONFIG['llm']['openai']
+            print(f"  Model: {config['model']}")
+            print(f"  Max Tokens: {config['max_tokens']}")
+            print(f"  Temperature: {config['temperature']}")
+            print(f"  API Key: {'***' + config['api_key'][-8:] if len(config['api_key']) > 8 else '***'}")
+        elif CONFIG['llm']['provider'] == 'local':
+            config = CONFIG['llm']['local']
+            print(f"  API URL: {config['api_url']}")
+            print(f"  Max Tokens: {config['max_tokens']}")
+            print(f"  Temperature: {config['temperature']}")
+
+        print(f"Debug Mode: {CONFIG['app']['debug']}")
+        print(f"Show Prompts: {CONFIG['logging']['show_prompts']}")
+        print("=" * 60)
         exit(0)
 
     # CLI mode removed - redirect to web interface
@@ -482,12 +673,17 @@ if __name__ == "__main__":
     print("⚠️  CLI mode has been removed.")
     print("Please use the web interface instead:")
     print()
-    print("1. Start the web server:")
+    print("1. Configure your LLM provider:")
+    print("   Edit config.yaml or run: python meta_data_ex_api.py --config")
+    print()
+    print("2. Start the web server:")
     print("   python app.py")
     print()
-    print("2. Open your browser:")
+    print("3. Open your browser:")
     print("   http://localhost:5000")
     print()
-    print("3. Upload your CSV file and follow the guided workflow")
-    print("4. Optionally upload additional context files (.txt, .json, .pdf, .docx)")
+    print("4. Upload your CSV file and follow the guided workflow")
+    print("5. Optionally upload additional context files (.txt, .json, .pdf, .docx)")
+    print()
+    print(f"🤖 Current LLM: {get_config_info()}")
     print("=" * 60)

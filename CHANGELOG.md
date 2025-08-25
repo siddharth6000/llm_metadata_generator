@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## v1.1.3
+
+### Added
+- **Configuration Management System**: Added YAML-based configuration with `config.yaml` for easy LLM provider management
+- **OpenAI Integration**: Built-in OpenAI API support with configurable models (GPT-3.5, GPT-4, GPT-4-turbo)
+- **Universal LLM Interface**: Unified query system supporting both OpenAI and local LLM providers with automatic routing
+- **Enhanced File Support**: Added .xlsx and .csv support for additional context files
+- **Configuration Commands**: Added `--config` and `--test-llm` command-line options for setup validation
+- **Improved Error Handling**: Better error messages and fallback mechanisms for LLM provider failures
+- **Enhanced File Size Support**: Increased maximum file upload size to 20MB for larger datasets
+
+### Enhanced
+- **LLM Provider Flexibility**: Easy switching between OpenAI and local providers via configuration
+- **Context File Processing**: Enhanced file reading with support for Excel and CSV context files
+- **User Experience**: Better error reporting and configuration validation
+- **Documentation**: Updated setup guides with configuration-based instructions
+
+### Technical Improvements
+- **Provider Abstraction**: Universal LLM query interface with automatic provider routing based on configuration
+- **Configuration Validation**: Automatic config.yaml creation with default settings
+- **OpenAI Client Management**: Proper OpenAI client initialization with API key validation
+- **Enhanced Logging**: Configurable logging levels and prompt debugging options
+- **Command Line Tools**: Added configuration inspection and LLM testing utilities
+
+### Bug Fixes
+- Fixed file size limit configuration to match actual 20MB implementation
+- Improved CSV and Excel file processing for additional context
+- Enhanced error handling for missing or invalid configuration files
+- Better validation for OpenAI API key configuration
+
 ## v1.1.2
 
 ### Added
