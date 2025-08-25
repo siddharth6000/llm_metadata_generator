@@ -1,634 +1,588 @@
-from flask import Flask, render_template, request, jsonify, send_file, Response
-import pandas as pd
-import json
+from flask import Flask, render_template, request, jsonify, send_file
 import os
 import tempfile
-import numpy as np
-from werkzeug.utils import secure_filename
+import traceback
 from datetime import datetime
 
-# Import functions from the updated meta_data_ex_api.py
-from meta_data_ex_api import (
-    analyze_column,
-    detect_column_type,
-    query_description_generation,
-    query_type_classification,
-    make_json_serializable
-)
+# Import modular components
+from config_manager import load_config, get_config_info, get_supabase_credentials, is_database_enabled, \
+    is_auto_save_enabled
+from llm_providers import initialize_openai_client, test_llm_connection
+from column_analysis import analyze_column, detect_column_type
+from llm_processor import query_description_generation, query_type_classification
+from file_handlers import validate_csv_file, process_csv_file, validate_extra_file, read_extra_file, get_file_info, \
+    secure_filename_with_session
+from session_manager import create_session, get_session, update_dataset_metadata, store_column_analysis, \
+    update_column_analysis, confirm_column, get_analysis_context, auto_confirm_all_columns
+from metadata_export import export_json, export_dqv, export_zip
 
-# Import DQV export functionality
-from dqv_export import create_dqv_metadata
+# Import cloud database manager
+try:
+    from cloud_database import CloudDatabaseManager
 
+    CLOUD_DB_AVAILABLE = True
+except ImportError:
+    CLOUD_DB_AVAILABLE = False
+    print("⚠️ Cloud database not available. Install with: pip install supabase")
+
+# Initialize Flask app
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 16MB max file size
+CONFIG = load_config()
+app.config['MAX_CONTENT_LENGTH'] = CONFIG['app']['max_file_size_mb'] * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
-# Store session data in memory (in production, use Redis or database)
-sessions = {}
+# Initialize clients
+openai_client = initialize_openai_client(CONFIG)
+cloud_db_manager = None
 
-
-def extract_tables_from_docx(path):
-    """Extract tables from DOCX files"""
+if CLOUD_DB_AVAILABLE and is_database_enabled(CONFIG):
     try:
-        from docx import Document
-        doc = Document(path)
-        table_texts = []
-        for table in doc.tables:
-            rows = []
-            for row in table.rows:
-                cells = [cell.text.strip() for cell in row.cells]
-                if any(cells):
-                    rows.append(" | ".join(cells))
-            table_texts.append("\n".join(rows))
-        return "\n\n".join(table_texts)
+        supabase_url, supabase_key = get_supabase_credentials(CONFIG)
+        if supabase_url and supabase_key:
+            cloud_db_manager = CloudDatabaseManager(supabase_url, supabase_key)
+            print(f"✅ Cloud database initialized")
     except Exception as e:
-        return f"[Error extracting tables: {e}]"
+        print(f"❌ Cloud database failed: {e}")
 
 
-def read_extra_file(file_path):
-    """Read and process additional context files"""
+def handle_error(error_msg, status_code=500):
+    """Unified error handling"""
+    print(f"Error: {error_msg}")
+    return jsonify({'error': error_msg}), status_code
+
+
+def save_to_cloud(session_id, metadata, zip_path, original_filename):
+    """Enhanced cloud save function with better error handling and logging"""
+    if not cloud_db_manager:
+        print("❌ Cloud database manager is not available")
+        return False
+
+    if not session_id:
+        print("❌ Session ID is missing")
+        return False
+
+    if not metadata or not metadata.get('columns'):
+        print("❌ Metadata is missing or has no columns")
+        return False
+
+    if not os.path.exists(zip_path):
+        print(f"❌ ZIP file not found: {zip_path}")
+        return False
+
     try:
-        if file_path.endswith(".txt"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        elif file_path.endswith(".json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return json.dumps(json.load(f), indent=2)
-        elif file_path.endswith(".pdf"):
-            try:
-                import fitz  # PyMuPDF
-                doc = fitz.open(file_path)
-                text_parts = []
-                for page in doc:
-                    text_parts.append(page.get_text())
-                doc.close()
-                return "\n".join(text_parts)
-            except ImportError:
-                return "[PDF processing requires PyMuPDF library]"
-        elif file_path.endswith(".docx"):
-            try:
-                from docx import Document
-                doc = Document(file_path)
-                text_parts = [para.text.strip() for para in doc.paragraphs if para.text.strip()]
-                table_text = extract_tables_from_docx(file_path)
-                return "\n\n".join(text_parts + [table_text])
-            except ImportError:
-                return "[DOCX processing requires python-docx library]"
-        elif file_path.endswith(".xlsx"):
-            try:
-                table_text = extract_tables_from_docx(file_path)
-                return "\n\n".join(table_text)
-                #df = pd.read_excel(file_path)
-                #return df.to_csv(index=False)
-            except Exception as e:
-                return f"[Error reading Excel file: {e}]"
-        elif file_path.endswith(".csv"):
-            try:
-                table_text = extract_tables_from_docx(file_path)
-                return "\n\n".join(table_text)
-                #df = pd.read_excel(file_path)
-                #return df.to_csv(index=False)
-            except Exception as e:
-                return f"[Error reading Excel file: {e}]"
+        file_size = os.path.getsize(zip_path)
+        print(f"💾 Saving to cloud database...")
+        print(f"   Session ID: {session_id}")
+        print(f"   Dataset: {metadata.get('dataset_name', 'Unknown')}")
+        print(f"   Columns: {len(metadata.get('columns', []))}")
+        print(f"   ZIP file: {zip_path}")
+        print(f"   File size: {file_size} bytes")
 
+        result = cloud_db_manager.save_dataset_metadata(
+            session_id=session_id,
+            metadata=metadata,
+            zip_file_path=zip_path,
+            original_filename=original_filename
+        )
 
+        print(f"📊 Cloud save result: {result}")
 
+        if result and result.get('success'):
+            print(f"✅ Cloud save successful!")
+            print(f"   File ID: {result.get('file_id')}")
+            print(f"   ZIP filename: {result.get('zip_filename')}")
+            return True
         else:
-            return f"[Unsupported file format: {file_path}]"
+            error_msg = result.get('error') if result else 'No result returned'
+            print(f"❌ Cloud save failed: {error_msg}")
+            return False
+
     except Exception as e:
-        return f"[Error reading extra file: {e}]"
-
-
-def get_prompt_context(extra_content):
-    """Format additional context for prompts"""
-    if extra_content and extra_content.strip():
-        return f"\n\nAdditional file context:\n{extra_content}\n"
-    return ""
+        print(f"❌ Cloud save error: {e}")
+        print(f"🔍 Traceback: {traceback.format_exc()}")
+        return False
 
 
 @app.route('/')
 def index():
-    """Serve the main web interface"""
     return render_template('index.html')
 
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handle CSV file upload and optional additional file"""
     try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No CSV file provided'}), 400
+        # Validate and process CSV
+        csv_file = request.files.get('file')
+        is_valid, error_msg = validate_csv_file(csv_file)
+        if not is_valid:
+            return handle_error(error_msg, 400)
 
-        csv_file = request.files['file']
-        if csv_file.filename == '':
-            return jsonify({'error': 'No CSV file selected'}), 400
+        dataset, error_msg = process_csv_file(csv_file)
+        if error_msg:
+            return handle_error(error_msg, 400)
 
-        if not csv_file.filename.lower().endswith('.csv'):
-            return jsonify({'error': 'Main file must be a CSV'}), 400
+        # Handle optional extra file
+        extra_content, extra_filename = "", ""
+        extra_file = request.files.get('extra_file')
 
-        # Read CSV data
-        try:
-            dataset = pd.read_csv(csv_file)
-        except Exception as e:
-            return jsonify({'error': f'Error reading CSV file: {str(e)}'}), 400
+        if extra_file and extra_file.filename:
+            is_valid, error_msg = validate_extra_file(extra_file)
+            if not is_valid:
+                return handle_error(error_msg, 400)
 
-        if dataset.empty:
-            return jsonify({'error': 'CSV file is empty'}), 400
+            extra_filename = secure_filename_with_session(extra_file.filename, "temp")
+            extra_filepath = os.path.join(app.config['UPLOAD_FOLDER'], extra_filename)
+            extra_file.save(extra_filepath)
+            extra_content = read_extra_file(extra_filepath)
+            extra_filename = extra_file.filename
 
-        # Generate session ID
-        session_id = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+            try:
+                os.remove(extra_filepath)
+            except:
+                pass
 
-        # Initialize session data
-        session_data = {
-            'dataset': dataset,
-            'filename': secure_filename(csv_file.filename),
-            'columns_processed': [],
-            'metadata': {},
-            'extra_content': '',
-            'analysis_results': {}  # Track analysis results for previous columns context
-        }
+        # Create session and return info
+        session_id = create_session(dataset, extra_content, extra_filename)
+        file_info = get_file_info(dataset, csv_file.filename)
+        file_info['session_id'] = session_id
+        file_info['cloud_db_enabled'] = cloud_db_manager is not None
+        file_info['auto_save_enabled'] = is_auto_save_enabled(CONFIG)
 
-        # Handle optional additional file
-        if 'extra_file' in request.files:
-            extra_file = request.files['extra_file']
-            if extra_file.filename != '':
-                # Save the extra file temporarily
-                extra_filename = secure_filename(extra_file.filename)
-                extra_filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{extra_filename}")
-                extra_file.save(extra_filepath)
-
-                # Process the extra file
-                extra_content = read_extra_file(extra_filepath)
-                session_data['extra_content'] = extra_content
-                session_data['extra_filename'] = extra_filename
-
-                # Clean up the temporary file
-                try:
-                    os.remove(extra_filepath)
-                except:
-                    pass
-
-        # Store dataset in session
-        sessions[session_id] = session_data
-
-        # Return file info and preview
-        preview_data = dataset.head().fillna('').to_dict('records')
-
-        response_data = {
-            'session_id': session_id,
-            'filename': csv_file.filename,
-            'rows': len(dataset),
-            'columns': len(dataset.columns),
-            'column_names': list(dataset.columns),
-            'preview': preview_data
-        }
-
-        # Add extra file info if present
-        if session_data['extra_content']:
-            response_data['extra_file'] = {
-                'filename': session_data.get('extra_filename', 'unknown'),
-                'content_length': len(session_data['extra_content']),
-                'content_preview': session_data['extra_content'][:200] + '...' if len(
-                    session_data['extra_content']) > 200 else session_data['extra_content']
+        if extra_content:
+            file_info['extra_file'] = {
+                'filename': extra_filename,
+                'content_length': len(extra_content),
+                'content_preview': extra_content[:200] + ('...' if len(extra_content) > 200 else '')
             }
 
-        return jsonify(response_data)
+        return jsonify(file_info)
 
     except Exception as e:
-        return jsonify({'error': f'Error processing files: {str(e)}'}), 500
+        return handle_error(f'Error processing files: {str(e)}')
 
 
 @app.route('/set_dataset_info', methods=['POST'])
 def set_dataset_info():
-    """Store dataset name and description"""
     try:
         data = request.json
-        session_id = data.get('session_id')
-
-        if session_id not in sessions:
-            return jsonify({'error': 'Invalid session'}), 400
-
-        sessions[session_id]['metadata'].update({
-            'dataset_name': data.get('name'),
-            'dataset_description': data.get('description')
-        })
-
-        return jsonify({'success': True})
-
+        success = update_dataset_metadata(data.get('session_id'), data.get('name'), data.get('description'))
+        return jsonify({'success': success}) if success else handle_error('Invalid session', 400)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return handle_error(str(e))
 
 
 @app.route('/analyze_column', methods=['POST'])
 def analyze_column_endpoint():
-    """Analyze a specific column with AI assistance - Two separate LLM calls"""
     try:
         data = request.json
-        session_id = data.get('session_id')
-        column_name = data.get('column_name')
+        session_id, column_name = data.get('session_id'), data.get('column_name')
 
-        if session_id not in sessions:
-            return jsonify({'error': 'Invalid session'}), 400
+        session_data = get_session(session_id)
+        if not session_data or column_name not in session_data['dataset'].columns:
+            return handle_error('Invalid session or column', 400)
 
-        session_data = sessions[session_id]
-        dataset = session_data['dataset']
+        # Analyze column
+        column_data = session_data['dataset'][column_name]
+        stats = analyze_column(column_data)
+        detected_type = detect_column_type(column_data)
+        context = get_analysis_context(session_id)
 
-        if column_name not in dataset.columns:
-            return jsonify({'error': 'Column not found'}), 400
+        # Generate AI description and type
+        description = query_description_generation(
+            column_name, stats, detected_type, context['dataset_name'],
+            context['dataset_description'], context['dataset_sample_str'],
+            context['previous_columns'], CONFIG, openai_client, context['additional_context']
+        )
 
-        # Analyze column using existing functions
-        column_data = dataset[column_name]
+        type_result = query_type_classification(
+            column_name, description, stats, detected_type,
+            context['dataset_name'], context['dataset_description'],
+            context['dataset_sample_str'], CONFIG, openai_client, context['additional_context']
+        )
 
-        # Ensure we have valid data
-        if column_data.empty:
-            return jsonify({'error': f'Column {column_name} is empty'}), 400
-
-        try:
-            stats = analyze_column(column_data)
-            detected_type = detect_column_type(column_data)
-        except Exception as e:
-            return jsonify({'error': f'Error analyzing column data: {str(e)}'}), 500
-
-        # Get dataset context for LLM
-        dataset_name = session_data['metadata'].get('dataset_name', 'Unknown Dataset')
-        dataset_description = session_data['metadata'].get('dataset_description', 'No description')
-        dataset_sample_str = dataset.head().to_string(index=False)
-
-        # Get previously analyzed columns from session (temporary analysis results)
-        previous_columns = []
-        if 'analysis_results' in session_data:
-            for col_name, col_data in session_data['analysis_results'].items():
-                if col_name != column_name and col_data.get('description') and col_data.get('type'):
-                    previous_columns.append({
-                        'name': col_name,
-                        'type': col_data.get('type'),
-                        'description': col_data.get('description')
-                    })
-
-        # Get additional context from extra file
-        extra_content = session_data.get('extra_content', '')
-        prompt_context = get_prompt_context(extra_content)
-
-        print(f"\n🔄 Starting analysis for column: {column_name}")
-        if extra_content:
-            print(f"📄 Using additional context from: {session_data.get('extra_filename', 'unknown file')}")
-
-        # FIRST LLM CALL: Generate description
-        print("📝 LLM Call #1: Generating description...")
-        try:
-            description = query_description_generation(
-                column_name, stats, detected_type,
-                dataset_name, dataset_description, dataset_sample_str,
-                previous_columns, prompt_context
-            )
-            print(f"✅ Description generated: {description[:100]}...")
-        except Exception as e:
-            print(f"❌ LLM description failed: {e}")
-            description = f"This column represents {column_name} data in the dataset."
-
-        # SECOND LLM CALL: Type classification using the description
-        print("🎯 LLM Call #2: Classifying type based on description...")
-        try:
-            llm_result = query_type_classification(
-                column_name, description, stats, detected_type,
-                dataset_name, dataset_description, dataset_sample_str,
-                prompt_context
-            )
-            type_confidence = llm_result.get('confidence', {})
-            suggested_type = llm_result.get('suggested_type', detected_type)
-            print(f"✅ Type classified as: {suggested_type}")
-        except Exception as e:
-            print(f"❌ LLM type classification failed: {e}")
-            # Fallback to rule-based detection
-            fallback_confidence = {
-                "binary": 0.0, "categorical": 0.0, "ordinal": 0.0,
-                "continuous": 0.0, "identifier": 0.0, "free_text": 0.0
-            }
-            fallback_confidence[detected_type] = 0.9
-            type_confidence = fallback_confidence
-            suggested_type = detected_type
-
-        # Clean stats for JSON serialization
-        clean_stats = json.loads(json.dumps(stats, default=make_json_serializable))
-
-        # Store analysis results in session for future reference
-        if 'analysis_results' not in session_data:
-            session_data['analysis_results'] = {}
-
-        session_data['analysis_results'][column_name] = {
-            'description': description,
-            'type': suggested_type,
-            'stats': clean_stats
-        }
-
-        return jsonify({
+        result = {
             'column_name': column_name,
-            'stats': clean_stats,
+            'stats': stats,
             'detected_type': detected_type,
             'suggested_description': description,
-            'suggested_type': suggested_type,
-            'type_confidence': type_confidence
-        })
+            'suggested_type': type_result.get('suggested_type', detected_type),
+            'type_confidence': type_result.get('confidence', {})
+        }
+
+        store_column_analysis(session_id, column_name, result)
+        return jsonify(result)
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return handle_error(str(e))
 
 
 @app.route('/reanalyze_type', methods=['POST'])
 def reanalyze_type():
-    """Reanalyze column type based on updated description - Third LLM call"""
     try:
         data = request.json
-        session_id = data.get('session_id')
-        column_name = data.get('column_name')
+        session_id, column_name = data.get('session_id'), data.get('column_name')
         updated_description = data.get('description')
 
-        if session_id not in sessions:
-            return jsonify({'error': 'Invalid session'}), 400
+        session_data = get_session(session_id)
+        if not session_data:
+            return handle_error('Invalid session', 400)
 
-        session_data = sessions[session_id]
-        dataset = session_data['dataset']
+        analysis_data = session_data.get('analysis_results', {}).get(column_name)
+        if not analysis_data:
+            return handle_error('Column not analyzed', 400)
 
-        if column_name not in dataset.columns:
-            return jsonify({'error': 'Column not found'}), 400
+        context = get_analysis_context(session_id)
+        type_result = query_type_classification(
+            column_name, updated_description, analysis_data['stats'],
+            analysis_data['detected_type'], context['dataset_name'],
+            context['dataset_description'], context['dataset_sample_str'],
+            CONFIG, openai_client, context['additional_context']
+        )
 
-        # Get column stats (reuse existing analysis)
-        column_data = dataset[column_name]
-        stats = analyze_column(column_data)
-        detected_type = detect_column_type(column_data)
-
-        # Get dataset context
-        dataset_name = session_data['metadata'].get('dataset_name', 'Unknown Dataset')
-        dataset_description = session_data['metadata'].get('dataset_description', 'No description')
-        dataset_sample_str = dataset.head().to_string(index=False)
-
-        # Get previously analyzed columns from session
-        previous_columns = []
-        if 'analysis_results' in session_data:
-            for col_name, col_data in session_data['analysis_results'].items():
-                if col_name != column_name and col_data.get('description') and col_data.get('type'):
-                    previous_columns.append({
-                        'name': col_name,
-                        'type': col_data.get('type'),
-                        'description': col_data.get('description')
-                    })
-
-        # Get additional context from extra file
-        extra_content = session_data.get('extra_content', '')
-        prompt_context = get_prompt_context(extra_content)
-
-        print(f"\n🔄 Reanalyzing type for column: {column_name}")
-        print(f"📝 Updated description: {updated_description[:100]}...")
-
-        # THIRD LLM CALL: Query LLM for type classification using the updated description
-        print("🎯 LLM Call #3: Reclassifying type based on updated description...")
-        try:
-            llm_result = query_type_classification(
-                column_name, updated_description, stats, detected_type,
-                dataset_name, dataset_description, dataset_sample_str,
-                prompt_context
-            )
-            suggested_type = llm_result.get('suggested_type', detected_type)
-            print(f"✅ Type reclassified as: {suggested_type}")
-
-            # Update stored analysis results
-            if 'analysis_results' not in session_data:
-                session_data['analysis_results'] = {}
-            if column_name in session_data['analysis_results']:
-                session_data['analysis_results'][column_name]['description'] = updated_description
-                session_data['analysis_results'][column_name]['type'] = suggested_type
-        except Exception as e:
-            print(f"❌ LLM type classification failed: {e}")
-            # Fallback to rule-based detection
-            suggested_type = detected_type
+        update_column_analysis(session_id, column_name, {
+            'description': updated_description,
+            'type': type_result['suggested_type']
+        })
 
         return jsonify({
             'column_name': column_name,
-            'suggested_type': suggested_type
+            'suggested_type': type_result['suggested_type']
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return handle_error(str(e))
 
 
 @app.route('/confirm_column', methods=['POST'])
-def confirm_column():
-    """Save user-confirmed column metadata"""
+def confirm_column_endpoint():
     try:
         data = request.json
-        session_id = data.get('session_id')
-        column_name = data.get('column_name')
-        column_type = data.get('type')
-        description = data.get('description')
-
-        if session_id not in sessions:
-            return jsonify({'error': 'Invalid session'}), 400
-
-        session_data = sessions[session_id]
-        dataset = session_data['dataset']
-
-        # Get column stats
-        column_data = dataset[column_name]
-        stats = analyze_column(column_data)
-
-        # Create column metadata entry
-        column_entry = {
-            "name": column_name,
-            "description": description,
-            "type": column_type,
-            "missing_values": int(stats.get("missing_values", 0)),
-            "unique_values": int(stats.get("unique_values", 0))
-        }
-
-        # Add numerical stats for continuous columns
-        if column_type == "continuous" and stats.get("mean") is not None:
-            column_entry.update({
-                "mean": float(stats.get("mean")),
-                "std": float(stats.get("std")) if stats.get("std") is not None else None,
-                "min": float(stats.get("min")) if stats.get("min") is not None else None,
-                "max": float(stats.get("max")) if stats.get("max") is not None else None
-            })
-
-        # Add to processed columns
-        session_data['columns_processed'].append(column_entry)
-
-        return jsonify({'success': True})
-
+        success = confirm_column(
+            data.get('session_id'), data.get('column_name'),
+            data.get('type'), data.get('description')
+        )
+        return jsonify({'success': success}) if success else handle_error('Failed to confirm column', 400)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return handle_error(str(e))
 
 
 @app.route('/get_metadata', methods=['POST'])
 def get_metadata():
-    """Retrieve complete metadata for the dataset"""
     try:
-        data = request.json
-        session_id = data.get('session_id')
-
-        if session_id not in sessions:
-            return jsonify({'error': 'Invalid session'}), 400
-
-        session_data = sessions[session_id]
+        session_id = request.json.get('session_id')
+        session_data = get_session(session_id)
+        if not session_data:
+            return handle_error('Invalid session', 400)
 
         metadata = {
             "dataset_name": session_data['metadata'].get('dataset_name'),
             "dataset_description": session_data['metadata'].get('dataset_description'),
-            "columns": session_data['columns_processed']
+            "columns": session_data.get('columns_processed', [])
         }
+
+        print(f"📊 Generated metadata for session {session_id}")
+        print(f"   Dataset: {metadata.get('dataset_name')}")
+        print(f"   Columns: {len(metadata.get('columns', []))}")
+
+        # Auto-save to cloud database if enabled
+        if cloud_db_manager and is_auto_save_enabled(CONFIG) and len(metadata.get('columns', [])) > 0:
+            try:
+                print("🔄 Auto-save is enabled, attempting to save...")
+
+                # Get session data for ZIP creation
+                dataset = session_data['dataset']
+                extra_content = session_data.get('extra_content', '')
+                extra_filename = session_data.get('extra_filename', '')
+
+                print(f"📁 Dataset shape: {dataset.shape}")
+                print(f"📄 Extra file: {extra_filename}")
+
+                # Generate ZIP file
+                print("🗜️  Creating ZIP file...")
+                zip_filepath, zip_filename = export_zip(
+                    metadata, session_id, dataset, extra_filename, extra_content
+                )
+
+                print(f"📦 ZIP created: {zip_filename}")
+                print(f"📁 ZIP path: {zip_filepath}")
+
+                # Verify ZIP file was created
+                if not os.path.exists(zip_filepath):
+                    print("❌ ZIP file was not created")
+                    raise Exception("ZIP file creation failed")
+
+                file_size = os.path.getsize(zip_filepath)
+                if file_size == 0:
+                    print("❌ ZIP file is empty")
+                    raise Exception("ZIP file is empty")
+
+                print(f"✅ ZIP file verified: {file_size} bytes")
+
+                # Save to cloud
+                original_filename = f"{metadata.get('dataset_name', 'dataset')}.csv"
+                save_success = save_to_cloud(session_id, metadata, zip_filepath, original_filename)
+
+                # Clean up temporary ZIP file
+                try:
+                    if os.path.exists(zip_filepath):
+                        os.remove(zip_filepath)
+                        print("🧹 Cleaned up temporary ZIP file")
+                except Exception as cleanup_error:
+                    print(f"⚠️ Could not clean up ZIP file: {cleanup_error}")
+
+                if save_success:
+                    print("🎉 Auto-save completed successfully!")
+                else:
+                    print("⚠️ Auto-save failed but continuing...")
+
+            except Exception as auto_save_error:
+                print(f"⚠️ Auto-save to cloud database failed: {auto_save_error}")
+                print(f"🔍 Auto-save traceback: {traceback.format_exc()}")
+                # Don't fail the main request if cloud save fails
+        else:
+            if not cloud_db_manager:
+                print("ℹ️  Cloud database manager not available")
+            elif not is_auto_save_enabled(CONFIG):
+                print("ℹ️  Auto-save is disabled in configuration")
+            elif len(metadata.get('columns', [])) == 0:
+                print("ℹ️  No columns to save")
 
         return jsonify(metadata)
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return handle_error(str(e))
 
 
 @app.route('/download_metadata', methods=['POST'])
 def download_metadata():
-    """Generate and download metadata JSON file"""
     try:
         data = request.json
-        session_id = data.get('session_id')
-        format_type = data.get('format', 'json')  # 'json' or 'dqv'
+        session_id, format_type = data.get('session_id'), data.get('format', 'json')
 
-        if session_id not in sessions:
-            return jsonify({'error': 'Invalid session'}), 400
-
-        session_data = sessions[session_id]
+        session_data = get_session(session_id)
+        if not session_data:
+            return handle_error('Invalid session', 400)
 
         metadata = {
-            "dataset_name": session_data['metadata'].get('dataset_name'),
-            "dataset_description": session_data['metadata'].get('dataset_description'),
-            "columns": session_data['columns_processed']
+            "dataset_name": session_data['metadata'].get('dataset_name', 'Unknown Dataset'),
+            "dataset_description": session_data['metadata'].get('dataset_description', 'No description'),
+            "columns": session_data.get('columns_processed', [])
         }
 
-        # Clean metadata for JSON serialization
-        clean_metadata = json.loads(json.dumps(metadata, default=make_json_serializable))
-
-        # Get dataset name and create safe filename
-        dataset_name = metadata.get('dataset_name', 'dataset')
-        safe_dataset_name = dataset_name.replace(' ', '_').replace('-', '_').lower()
-        # Remove any other potentially problematic characters
-        import re
-        safe_dataset_name = re.sub(r'[^\w\-_]', '', safe_dataset_name)
-
+        # Export based on format
         if format_type == 'dqv':
-            # Generate DQV format
-            try:
-                dqv_content = create_dqv_metadata(clean_metadata)
-                filename = f"{safe_dataset_name}_metadata.ttl"
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{filename}")
-
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    f.write(dqv_content)
-
-                return send_file(
-                    filepath,
-                    as_attachment=True,
-                    download_name=filename,
-                    mimetype='text/turtle'
-                )
-
-            except Exception as e:
-                return jsonify({'error': f'Error generating DQV format: {str(e)}'}), 500
-        else:
-            # Generate JSON format (default)
-            filename = f"{safe_dataset_name}_metadata.json"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{filename}")
-
-            with open(filepath, 'w') as f:
-                json.dump(clean_metadata, f, indent=4)
-
-            return send_file(
-                filepath,
-                as_attachment=True,
-                download_name=filename,
-                mimetype='application/json'
+            filepath, filename = export_dqv(metadata, session_id)
+            mimetype = 'text/turtle'
+        elif format_type == 'zip':
+            dataset = session_data['dataset']
+            filepath, filename = export_zip(
+                metadata, session_id, dataset,
+                session_data.get('extra_filename', ''),
+                session_data.get('extra_content', '')
             )
+            mimetype = 'application/zip'
+
+            # Save to cloud if enabled
+            if cloud_db_manager and is_database_enabled(CONFIG):
+                try:
+                    print("💾 Saving ZIP download to cloud database...")
+                    original_filename = f"{metadata.get('dataset_name', 'dataset')}.csv"
+                    save_success = save_to_cloud(session_id, metadata, filepath, original_filename)
+                    if save_success:
+                        print("✅ ZIP download saved to cloud successfully")
+                    else:
+                        print("⚠️ ZIP download cloud save failed")
+                except Exception as e:
+                    print(f"⚠️ ZIP download cloud save failed: {e}")
+        else:
+            filepath, filename = export_json(metadata, session_id)
+            mimetype = 'application/json'
+
+        if not os.path.exists(filepath):
+            return handle_error('Failed to create file')
+
+        return send_file(filepath, as_attachment=True, download_name=filename, mimetype=mimetype)
 
     except Exception as e:
+        return handle_error(f'Download failed: {str(e)}')
+
+
+# Cloud database routes
+@app.route('/cloud_datasets', methods=['GET'])
+def get_cloud_datasets():
+    if not cloud_db_manager:
+        return handle_error('Cloud database not available', 400)
+
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        datasets = cloud_db_manager.get_dataset_list(limit=limit)
+        return jsonify({'datasets': datasets, 'total': len(datasets)})
+    except Exception as e:
+        return handle_error(str(e))
+
+
+@app.route('/cloud_dataset/<file_id>', methods=['GET'])
+def get_cloud_dataset(file_id):
+    if not cloud_db_manager:
+        return handle_error('Cloud database not available', 400)
+
+    try:
+        dataset = cloud_db_manager.get_dataset_metadata(file_id)
+        return jsonify(dataset) if dataset else handle_error('Dataset not found', 404)
+    except Exception as e:
+        return handle_error(str(e))
+
+
+@app.route('/cloud_dataset/<file_id>', methods=['DELETE'])
+def delete_cloud_dataset(file_id):
+    if not cloud_db_manager:
+        return handle_error('Cloud database not available', 400)
+
+    try:
+        success = cloud_db_manager.delete_dataset(file_id)
+        return jsonify({'success': success}) if success else handle_error('Failed to delete dataset', 400)
+    except Exception as e:
+        return handle_error(str(e))
+
+
+@app.route('/cloud_usage', methods=['GET'])
+def get_cloud_usage():
+    if not cloud_db_manager:
+        return handle_error('Cloud database not available', 400)
+
+    try:
+        return jsonify(cloud_db_manager.get_storage_usage())
+    except Exception as e:
+        return handle_error(str(e))
+
+
+@app.route('/auto_confirm_columns', methods=['POST'])
+def auto_confirm_columns():
+    try:
+        session_id = request.json.get('session_id')
+        success = auto_confirm_all_columns(session_id)
+
+        if success:
+            session_data = get_session(session_id)
+            return jsonify({
+                'success': True,
+                'columns_confirmed': len(session_data.get('columns_processed', []))
+            })
+        return handle_error('Failed to auto-confirm columns')
+    except Exception as e:
+        return handle_error(str(e))
+
+
+@app.route('/test_cloud_save', methods=['POST'])
+def test_cloud_save():
+    """Test endpoint to manually trigger cloud save"""
+    try:
+        session_id = request.json.get('session_id')
+        if not session_id:
+            return jsonify({'error': 'session_id required'}), 400
+
+        print(f"🧪 Testing cloud save for session: {session_id}")
+
+        session_data = get_session(session_id)
+        if not session_data:
+            return jsonify({'error': 'Invalid session'}), 400
+
+        # Create metadata
+        metadata = {
+            "dataset_name": session_data['metadata'].get('dataset_name', 'Test Dataset'),
+            "dataset_description": session_data['metadata'].get('dataset_description', 'Test Description'),
+            "columns": session_data.get('columns_processed', [])
+        }
+
+        if len(metadata['columns']) == 0:
+            return jsonify({'error': 'No columns to save'}), 400
+
+        # Create ZIP
+        dataset = session_data['dataset']
+        zip_filepath, zip_filename = export_zip(
+            metadata, session_id, dataset,
+            session_data.get('extra_filename', ''),
+            session_data.get('extra_content', '')
+        )
+
+        # Save to cloud
+        success = save_to_cloud(
+            session_id, metadata, zip_filepath,
+            f"{metadata.get('dataset_name', 'dataset')}.csv"
+        )
+
+        # Cleanup
+        if os.path.exists(zip_filepath):
+            os.remove(zip_filepath)
+
+        return jsonify({
+            'success': success,
+            'message': 'Cloud save test completed',
+            'columns_count': len(metadata['columns']),
+            'cloud_db_available': cloud_db_manager is not None,
+            'auto_save_enabled': is_auto_save_enabled(CONFIG)
+        })
+
+    except Exception as e:
+        print(f"❌ Test cloud save failed: {e}")
+        print(f"🔍 Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'active_sessions': len(sessions),
-        'version': '1.1.3',
-        'supported_formats': ['json', 'dqv'],
-        'supported_extra_files': ['.txt', '.json', '.pdf', '.docx']
-    })
+    try:
+        llm_status = test_llm_connection(CONFIG, openai_client)
+
+        cloud_db_status = False
+        cloud_db_info = "disabled"
+        if cloud_db_manager:
+            try:
+                usage = cloud_db_manager.get_storage_usage()
+                cloud_db_status = True
+                cloud_db_info = f"connected ({usage['total_files']} files, {usage['total_size_mb']} MB)"
+            except Exception as e:
+                cloud_db_info = f"error: {str(e)}"
+
+        return jsonify({
+            'status': 'healthy',
+            'llm_status': 'connected' if llm_status else 'disconnected',
+            'llm_provider': CONFIG['llm']['provider'],
+            'cloud_db_status': 'connected' if cloud_db_status else 'disconnected',
+            'cloud_db_info': cloud_db_info,
+            'auto_save_enabled': is_auto_save_enabled(CONFIG),
+            'version': '1.2.0'
+        })
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
 
 
+# Error handlers
 @app.errorhandler(413)
 def too_large(e):
-    """Handle file too large error"""
-    return jsonify({'error': 'File too large. Maximum size is 20MB.'}), 413
+    return handle_error('File too large. Maximum size exceeded.', 413)
 
 
 @app.errorhandler(404)
 def not_found(e):
-    """Handle 404 errors"""
-    return jsonify({'error': 'Endpoint not found'}), 404
+    return handle_error('Endpoint not found', 404)
 
 
 @app.errorhandler(500)
 def internal_error(e):
-    """Handle internal server errors"""
-    return jsonify({'error': 'Internal server error'}), 500
-
-
-# Cleanup function to remove old sessions (optional)
-def cleanup_old_sessions():
-    """Remove sessions older than 1 hour to prevent memory leaks"""
-    import time
-    current_time = time.time()
-    cutoff_time = current_time - 3600  # 1 hour ago
-
-    sessions_to_remove = []
-    for session_id in sessions:
-        try:
-            # Extract timestamp from session_id
-            timestamp_str = session_id.split('_')[0] + session_id.split('_')[1]
-            session_time = datetime.strptime(timestamp_str, '%Y%m%d%H%M%S').timestamp()
-            if session_time < cutoff_time:
-                sessions_to_remove.append(session_id)
-        except:
-            # If we can't parse the timestamp, remove the session
-            sessions_to_remove.append(session_id)
-
-    for session_id in sessions_to_remove:
-        del sessions[session_id]
-        print(f"Cleaned up old session: {session_id}")
+    return handle_error('Internal server error')
 
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("Dataset Metadata Extraction Tool - Web Interface")
+    print("Dataset Metadata Extraction Tool v2.1")
     print("=" * 60)
-    print("Features:")
-    print("   • AI-powered column description generation (LLM Call #1)")
-    print("   • AI-powered column type detection (LLM Call #2)")
-    print("   • Interactive description updates (LLM Call #3)")
-    print("   • Full additional file context support (no truncation)")
-    print("   • Column navigation (back/forth between columns)")
-    print("   • Professional metadata export (JSON & DQV formats)")
-    print()
-    print("🔧 Configuration:")
-    print(f"   • Max file size: {app.config['MAX_CONTENT_LENGTH'] // 1024 // 1024}MB")
-    print("   • LLM API: Configured in meta_data_ex_api.py")
-    print("   • Export formats: JSON, DQV (W3C Data Quality Vocabulary)")
-    print("   • Supported extra files: .txt, .json, .pdf, .docx")
-    print()
-    print("Starting server...")
-    print("   • Web interface: http://localhost:5000")
-    print("   • Health check: http://localhost:5000/health")
-    print()
-    print("⚠️  Make sure your LLM server is running for AI features!")
-    print("📄 Optional: Upload additional context files (.txt, .json, .pdf, .docx)")
-    print("💡 No content truncation - full file context will be used")
+    print(f"🔧 Configuration: {get_config_info(CONFIG)}")
+    print(f"📁 Max file size: {CONFIG['app']['max_file_size_mb']}MB")
+    print(f"☁️ Cloud Database: {'✅ Enabled' if cloud_db_manager else '❌ Disabled'}")
+    print(f"🔄 Auto-Save: {'✅ Enabled' if is_auto_save_enabled(CONFIG) else '❌ Disabled'}")
+    print(f"🤖 LLM Status: {'✅ Connected' if test_llm_connection(CONFIG, openai_client) else '❌ Failed'}")
+    print("🚀 Starting server at http://localhost:5000")
     print("=" * 60)
 
-    # Run the Flask application
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=CONFIG['app']['debug'], host='0.0.0.0', port=5000)

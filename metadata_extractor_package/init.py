@@ -1,8 +1,9 @@
 """
-LLM Metadata Extractor v1.1.3
+LLM Metadata Extractor v1.2.0
 
 Enhanced dataset metadata extraction with comprehensive prompting, context-aware analysis,
-statistical enrichment, web interface, local LLM server support and OpenAI API support, and DQV export capabilities.
+statistical enrichment, web interface, local LLM server support, OpenAI API support, 
+DQV export capabilities, and NEW batch processing with cloud integration.
 """
 
-__version__ = "1.1.3"
+__version__ = "1.2.0"
