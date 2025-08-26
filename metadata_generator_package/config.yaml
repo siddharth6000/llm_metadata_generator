@@ -1,0 +1,43 @@
+# LLM Metadata Extractor v1.2.1 Configuration
+# Choose between 'openai' or 'local' LLM provider
+llm:
+  # Provider: 'openai' or 'local'
+  provider: "openai"  # Change to "local" to use your hosted LLM
+  # OpenAI Configuration
+  openai:
+    api_key: "your-openai-api-key-here"  # Or use environment variable OPENAI_API_KEY
+    model: "gpt-4"  # Options: gpt-3.5-turbo, gpt-4, gpt-4-turbo
+    max_tokens: 300
+    temperature: 0.7
+    timeout: 30  # seconds
+  # Local LLM Configuration
+  local:
+    api_url: "http://localhost:8000/generate"
+    max_tokens: 300
+    temperature: 0.7
+    timeout: 30  # seconds
+    headers:
+      Content-Type: "application/json"
+      ngrok-skip-browser-warning: "true"
+
+# Application Settings
+app:
+  debug: false
+  max_file_size_mb: 30  # Updated for v1.2.1
+  session_cleanup_hours: 1
+
+# Cloud Database Configuration
+database:
+  enabled: true  # Set to true to enable cloud database integration
+  provider: "supabase"  # Currently only supabase is supported
+  
+  supabase:
+    url: "https://your-project.supabase.co"  # Or use environment variable SUPABASE_URL
+    key: "your-supabase-anon-key"  # Your Supabase anon key - OR use environment variable SUPABASE_KEY
+    auto_save: true  # Automatically save ZIP files to cloud after analysis completion
+    bucket_name: "dataset-metadata"  # Storage bucket name for ZIP files
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  show_prompts: true  # Set to true to show detailed prompt logging

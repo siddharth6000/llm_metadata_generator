@@ -1,0 +1,92 @@
+# Dataset Metadata Extraction Tool - Docker Compose Configuration
+# Provides production and development container orchestration with persistent storage
+
+version: '3.8'
+
+services:
+  # Main production application service
+  metadata-tool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dataset-metadata-tool
+    ports:
+      - "5000:5000"
+    environment:
+      # Flask configuration
+      - FLASK_ENV=production
+      - FLASK_DEBUG=false
+      - PYTHONUNBUFFERED=1
+      - TZ=UTC
+
+      # API credentials from environment variables or .env file
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+
+    volumes:
+      # Configuration file (read-only)
+      - ./config.yaml:/app/config.yaml:ro
+
+      # Persistent data storage
+      - uploads-data:/app/uploads
+      - temp-data:/app/temp
+      - backups-data:/app/backups
+      - logs-data:/app/logs
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development service with live code reloading
+  metadata-tool-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dataset-metadata-tool-dev
+    ports:
+      - "5001:5000"  # Different port to avoid conflicts
+    environment:
+      # Development configuration
+      - FLASK_ENV=development
+      - FLASK_DEBUG=true
+      - PYTHONUNBUFFERED=1
+
+      # API credentials
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+
+    volumes:
+      # Live code reloading (mount source code)
+      - .:/app
+      - uploads-data:/app/uploads
+      - temp-data:/app/temp
+      - logs-data:/app/logs
+
+    restart: unless-stopped
+
+    # Only runs when specifically requested
+    profiles:
+      - dev
+
+# Persistent storage volumes
+volumes:
+  uploads-data:
+    driver: local
+  temp-data:
+    driver: local
+  backups-data:
+    driver: local
+  logs-data:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    name: metadata-tool-network
