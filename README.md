@@ -1,10 +1,17 @@
-# LLM Metadata Extractor v1.2.1
+# LLM Metadata Generator v1.2.2
 
-A comprehensive Python tool that uses Large Language Models to analyze and annotate dataset columns with semantic types and descriptions. This version introduces **batch processing capabilities**, enhanced CLI interface, and cloud integration features while maintaining all existing functionality.
+A comprehensive Python tool that uses Large Language Models to generate and analyze dataset metadata with semantic types and descriptions. This version introduces **enhanced generation capabilities**, improved module architecture, and advanced configuration management while maintaining all existing functionality.
 
 ## Features
 
-### NEW in v1.2.1
+### NEW in v1.2.2
+- **Enhanced Generation Capabilities**: Advanced AI-powered metadata generation with improved semantic analysis
+- **Package Rename**: Complete migration from `llm_metadata_extractor` to `metadata_generator_package`
+- **Improved Module Architecture**: Enhanced code organization with comprehensive docstrings and better error handling
+- **Advanced Configuration Management**: Improved configuration validation with better placeholder detection
+- **Enhanced Startup Diagnostics**: Better LLM connection testing and status reporting
+
+### v1.2.1 Features
 - **Enhanced Performance**: Improved memory management and processing speed for large datasets
 - **Advanced Error Recovery**: Robust error handling with automatic retry mechanisms
 - **Cloud Database Integration**: Built-in Supabase integration for automated result saving and retrieval
@@ -50,10 +57,10 @@ pip install -r requirements.txt
 ### Docker (Recommended)
 ```bash
 # Build the Docker image
-docker build -t metadata-extractor .
+docker build -t metadata-generator .
 
 # Run the container
-docker run -p 5000:5000 metadata-extractor
+docker run -p 5000:5000 metadata-generator
 
 # Run with Docker Compose
 docker-compose up
@@ -81,7 +88,7 @@ docker-compose up
 ├── requirements.txt                    # Python dependencies
 ├── templates/
 │   └── index.html                      # Web interface template
-├── metadata_extractor_package/
+├── metadata_generator_package/
 │   ├── __init__.py                     # Version information
 │   └── local_server/
 │       └── llm_server_ms_7b.py       # Local Mistral 7B server
@@ -134,7 +141,7 @@ Standard structured metadata format for most applications:
     "dataset_name": "Sample Dataset",
     "dataset_description": "Dataset description",
     "generated_timestamp": "2025-08-26T10:30:00Z",
-    "tool_version": "1.2.1",
+    "tool_version": "1.2.2",
     "columns": [
         {
             "name": "age",
@@ -214,4 +221,4 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and improveme
 
 ---
 
-**Happy metadata extraction with v1.2.1!** 🚀
+**Happy metadata generation with v1.2.2!** 🚀
