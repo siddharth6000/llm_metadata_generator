@@ -1,0 +1,37 @@
+# Core Flask dependencies
+Flask==2.3.3
+Werkzeug==2.3.7
+gunicorn==21.2.0
+python-dotenv==1.0.0
+
+# Data processing
+pandas==2.1.1
+numpy==1.24.3
+
+# Configuration and utilities
+PyYAML==6.0.1
+requests==2.31.0
+
+# Semantic web and metadata
+rdflib==6.3.2
+
+# File processing
+python-docx==0.8.11
+PyMuPDF==1.23.5
+openpyxl==3.1.2
+
+# AI/LLM providers
+openai==1.51.0
+
+# Supabase - install as a group to avoid conflicts
+supabase==1.0.3
+
+# Additional utilities
+python-dateutil==2.8.2
+urllib3==1.26.16
+setuptools>=65.0.0
+
+# Security and compatibility
+cryptography>=41.0.0
+certifi>=2023.7.22
+typing-extensions>=4.8.0

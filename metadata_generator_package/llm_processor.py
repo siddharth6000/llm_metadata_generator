@@ -1,13 +1,23 @@
-"""AI-powered description generation and type classification functionality."""
+"""
+AI-powered description generation and type classification functionality.
+
+Handles LLM queries for generating column descriptions and classifying
+column types using OpenAI or local LLM providers.
+"""
 
 import json
 from llm_providers import query_llm
 
 
+def is_llm_failed_response(response):
+    """Check if LLM response indicates a failure."""
+    return isinstance(response, str) and response.startswith("[") and response.endswith("]")
+
+
 def query_description_generation(column_name, stats, analysed_col_type, dataset_name, dataset_description,
                                 dataset_sample_str, previous_columns, config, openai_client=None, additional_context=""):
-    """Query LLM for column description generation with optional additional context"""
-    print(f"\n📝 === DESCRIPTION GENERATION FOR COLUMN: {column_name} ===")
+    """Query LLM for column description generation with optional additional context."""
+    print(f"\n🔍 === DESCRIPTION GENERATION FOR COLUMN: {column_name} ===")
 
     user_prompt = (
         "You are generating a metadata description for a dataset column.\n\n"
@@ -61,16 +71,11 @@ def query_description_generation(column_name, stats, analysed_col_type, dataset_
 
     user_prompt += "Now write the real-world description of this column only. Do not included any stats or sample values from the dataset."
 
-    print(f"About to call {config['llm']['provider'].upper()} for DESCRIPTION...")
-    if config['logging']['show_prompts']:
-        print("\nUser Prompt:\n", user_prompt)
-
-    response = query_llm(user_prompt, config, openai_client)
-    print(f"\n{config['llm']['provider'].upper()} DESCRIPTION Response: {response}")
+    # Query LLM and handle response
+    response = _query_llm_with_logging(config, openai_client, user_prompt, "DESCRIPTION")
 
     # Handle LLM failures
-    if response.startswith("[") and response.endswith("]"):
-        print(f"❌ {config['llm']['provider'].upper()} call failed: {response}")
+    if is_llm_failed_response(response):
         fallback_description = f"This column represents {column_name} data in the dataset."
         print(f"🔄 Using fallback description: {fallback_description}")
         return fallback_description
@@ -80,7 +85,7 @@ def query_description_generation(column_name, stats, analysed_col_type, dataset_
 
 def query_type_classification(column_name, col_description, stats, analysed_col_type, dataset_name, dataset_description,
                              dataset_sample_str, config, openai_client=None, additional_context=""):
-    """Query LLM for column type classification with confidence scores and optional additional context"""
+    """Query LLM for column type classification with confidence scores and optional additional context."""
     print(f"\n🎯 === TYPE CLASSIFICATION FOR COLUMN: {column_name} ===")
     print(f"📄 Using description: {col_description[:100]}...")
 
@@ -155,50 +160,65 @@ def query_type_classification(column_name, col_description, stats, analysed_col_
 
     user_prompt += "Output:"
 
-    print(f"About to call {config['llm']['provider'].upper()} for TYPE CLASSIFICATION...")
-    if config['logging']['show_prompts']:
-        print("\nUser Prompt:\n" + user_prompt)
-
-    response = query_llm(user_prompt, config, openai_client)
-    print(f"\n{config['llm']['provider'].upper()} TYPE Response: {response}")
+    # Query LLM and handle response
+    response = _query_llm_with_logging(config, openai_client, user_prompt, "TYPE CLASSIFICATION")
 
     # Handle LLM failures
-    if response.startswith("[") and response.endswith("]"):
-        print(f"❌ {config['llm']['provider'].upper()} call failed: {response}")
-        fallback_confidence = {
-            "binary": 0.0, "categorical": 0.0, "ordinal": 0.0,
-            "continuous": 0.0, "identifier": 0.0, "free_text": 0.0
+    if is_llm_failed_response(response):
+        print(f"🔄 Using fallback type: {analysed_col_type}")
+        return _create_fallback_confidence(analysed_col_type)
+
+    # Parse LLM response
+    try:
+        confidence_dict = json.loads(response.strip())
+
+        # Ensure all expected keys are present
+        expected_keys = ["binary", "categorical", "ordinal", "continuous", "identifier", "free_text"]
+        for key in expected_keys:
+            confidence_dict.setdefault(key, 0.0)
+
+        top_type = max(confidence_dict, key=confidence_dict.get)
+        print(f"✅ Successfully parsed confidence scores. Top type: {top_type}")
+
+        return {
+            'confidence': confidence_dict,
+            'suggested_type': top_type
         }
-        fallback_confidence[analysed_col_type] = 0.9
-        confidence_dict = fallback_confidence
-        top_type = analysed_col_type
-        print(f"🔄 Using fallback type: {top_type}")
-    else:
-        # Parse LLM response
-        try:
-            confidence_dict = json.loads(response.strip())
 
-            # Ensure all expected keys are present
-            expected_keys = ["binary", "categorical", "ordinal", "continuous", "identifier", "free_text"]
-            for key in expected_keys:
-                confidence_dict.setdefault(key, 0.0)
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON parsing failed: {e}")
+        print(f"🔄 Raw response was: {response}")
+        return _create_fallback_confidence(analysed_col_type)
 
-            top_type = max(confidence_dict, key=confidence_dict.get)
-            print(f"✅ Successfully parsed confidence scores. Top type: {top_type}")
 
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON parsing failed: {e}")
-            print(f"📄 Raw response was: {response}")
-            # Fallback confidence scores
-            fallback_confidence = {
-                "binary": 0.0, "categorical": 0.0, "ordinal": 0.0,
-                "continuous": 0.0, "identifier": 0.0, "free_text": 0.0
-            }
-            fallback_confidence[analysed_col_type] = 0.9
-            confidence_dict = fallback_confidence
-            top_type = analysed_col_type
+# Private helper functions
+
+def _query_llm_with_logging(config, openai_client, prompt, operation_type):
+    """Query LLM with consistent logging."""
+    provider = config['llm']['provider'].upper()
+    print(f"About to call {provider} for {operation_type}...")
+
+    if config['logging']['show_prompts']:
+        print(f"\nUser Prompt:\n{prompt}")
+
+    response = query_llm(prompt, config, openai_client)
+    print(f"\n{provider} {operation_type} Response: {response}")
+
+    if is_llm_failed_response(response):
+        print(f"❌ {provider} call failed: {response}")
+
+    return response
+
+
+def _create_fallback_confidence(analysed_col_type):
+    """Create fallback confidence scores when LLM fails."""
+    fallback_confidence = {
+        "binary": 0.0, "categorical": 0.0, "ordinal": 0.0,
+        "continuous": 0.0, "identifier": 0.0, "free_text": 0.0
+    }
+    fallback_confidence[analysed_col_type] = 0.9
 
     return {
-        'confidence': confidence_dict,
-        'suggested_type': top_type
+        'confidence': fallback_confidence,
+        'suggested_type': analysed_col_type
     }

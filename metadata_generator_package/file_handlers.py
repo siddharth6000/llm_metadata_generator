@@ -1,4 +1,9 @@
-"""File upload and processing functionality."""
+"""
+File upload and processing functionality.
+
+Handles CSV file validation, additional context file processing,
+and secure filename generation for uploaded files.
+"""
 
 import json
 import pandas as pd
@@ -6,32 +11,36 @@ from werkzeug.utils import secure_filename
 
 
 def extract_tables_from_docx(path):
-    """Extract tables from DOCX files"""
+    """Extract tables from DOCX files and convert to text format."""
     try:
         from docx import Document
         doc = Document(path)
         table_texts = []
+
         for table in doc.tables:
             rows = []
             for row in table.rows:
                 cells = [cell.text.strip() for cell in row.cells]
-                if any(cells):
+                if any(cells):  # Only add non-empty rows
                     rows.append(" | ".join(cells))
             table_texts.append("\n".join(rows))
+
         return "\n\n".join(table_texts)
     except Exception as e:
         return f"[Error extracting tables: {e}]"
 
 
 def read_extra_file(file_path):
-    """Read and process additional context files"""
+    """Read and process additional context files based on file extension."""
     try:
         if file_path.endswith(".txt"):
             with open(file_path, 'r', encoding='utf-8') as f:
                 return f.read()
+
         elif file_path.endswith(".json"):
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.dumps(json.load(f), indent=2)
+
         elif file_path.endswith(".pdf"):
             try:
                 import fitz  # PyMuPDF
@@ -43,21 +52,29 @@ def read_extra_file(file_path):
                 return "\n".join(text_parts)
             except ImportError:
                 return "[PDF processing requires PyMuPDF library]"
+
         elif file_path.endswith(".docx"):
             try:
                 from docx import Document
                 doc = Document(file_path)
+
+                # Extract paragraphs
                 text_parts = [para.text.strip() for para in doc.paragraphs if para.text.strip()]
+
+                # Extract tables
                 table_text = extract_tables_from_docx(file_path)
+
                 return "\n\n".join(text_parts + [table_text])
             except ImportError:
                 return "[DOCX processing requires python-docx library]"
+
         elif file_path.endswith(".xlsx"):
             try:
                 df = pd.read_excel(file_path)
                 return df.to_csv(index=False)
             except Exception as e:
                 return f"[Error reading Excel file: {e}]"
+
         elif file_path.endswith(".csv"):
             try:
                 df = pd.read_csv(file_path)
@@ -66,12 +83,13 @@ def read_extra_file(file_path):
                 return f"[Error reading CSV file: {e}]"
         else:
             return f"[Unsupported file format: {file_path}]"
+
     except Exception as e:
         return f"[Error reading extra file: {e}]"
 
 
 def validate_csv_file(file):
-    """Validate CSV file upload"""
+    """Validate CSV file upload requirements."""
     if not file or file.filename == '':
         return False, 'No CSV file selected'
 
@@ -82,7 +100,7 @@ def validate_csv_file(file):
 
 
 def process_csv_file(file):
-    """Process uploaded CSV file and return dataset"""
+    """Process uploaded CSV file and return pandas DataFrame."""
     try:
         dataset = pd.read_csv(file)
         if dataset.empty:
@@ -93,7 +111,7 @@ def process_csv_file(file):
 
 
 def validate_extra_file(file):
-    """Validate additional context file"""
+    """Validate additional context file format."""
     if not file or file.filename == '':
         return True, None  # Extra file is optional
 
@@ -107,7 +125,7 @@ def validate_extra_file(file):
 
 
 def get_file_info(dataset, filename):
-    """Get basic information about the uploaded dataset"""
+    """Get basic information about the uploaded dataset."""
     return {
         'filename': filename,
         'rows': len(dataset),
@@ -118,6 +136,6 @@ def get_file_info(dataset, filename):
 
 
 def secure_filename_with_session(filename, session_id):
-    """Create a secure filename with session prefix"""
+    """Create a secure filename with session prefix to avoid conflicts."""
     secure_name = secure_filename(filename)
     return f"{session_id}_{secure_name}"

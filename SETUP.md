@@ -1,6 +1,6 @@
 # Setup Guide
 
-Complete setup instructions for LLM Metadata Extractor v1.2.1.
+Complete setup instructions for LLM Metadata Extractor v1.2.2.
 
 ## Quick Setup
 
@@ -8,19 +8,10 @@ Complete setup instructions for LLM Metadata Extractor v1.2.1.
 - Python 3.8+
 - Docker (recommended)
 
-### Docker Setup (Recommended)
+### Step 1: Clone Repository
 ```bash
-# Clone repository
 git clone https://github.com/your-username/llm-metadata-extractor.git
 cd llm-metadata-extractor
-
-# Build image
-docker build -t metadata-extractor .
-
-# Run container
-docker run -p 5000:5000 metadata-extractor
-
-# Open browser to http://localhost:5000
 ```
 
 ## Configuration
@@ -75,11 +66,18 @@ database:
 ```
 
 #### Database Setup
-1. **Create Tables**
-   - Go to **SQL Editor** in Supabase dashboard
-   - Click **New Query**
-   - Paste and run this SQL:
+1. **Run Database Setup Script**
+```bash
+python metadata_extractor_package/setup_database.py
+```
+
+2. **Manual Database Setup** (if script fails)
+   - Go to your Supabase dashboard
+   - Click on **SQL Editor** in the left sidebar
+   - Click **New Query** and paste the following SQL:
+
 ```sql
+-- Create dataset_metadata table
 CREATE TABLE IF NOT EXISTS dataset_metadata (
     id SERIAL PRIMARY KEY,
     file_id VARCHAR(255) UNIQUE NOT NULL,
@@ -96,151 +94,128 @@ CREATE TABLE IF NOT EXISTS dataset_metadata (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_dataset_metadata_file_id ON dataset_metadata(file_id);
 CREATE INDEX IF NOT EXISTS idx_dataset_metadata_session_id ON dataset_metadata(session_id);
 CREATE INDEX IF NOT EXISTS idx_dataset_metadata_created_at ON dataset_metadata(created_at);
 CREATE INDEX IF NOT EXISTS idx_dataset_metadata_dataset_name ON dataset_metadata(dataset_name);
 
+-- Create updated_at trigger
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $
+RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$ language 'plpgsql';
+$$ language 'plpgsql';
 
 CREATE TRIGGER update_dataset_metadata_updated_at 
     BEFORE UPDATE ON dataset_metadata 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
-2. **Create Storage Bucket**
-   - Go to **Storage** in Supabase dashboard
+3. **Create Storage Bucket**
+   - Go to **Storage** in your Supabase dashboard
    - Click **Create bucket**
-   - Enter name: `dataset-metadata`
-   - Set to **Private**
+   - Enter bucket name: `dataset-metadata`
+   - Set it to **Private** (recommended)
    - Click **Create bucket**
 
-## Docker Configuration
+## Docker Setup (Recommended)
 
-### Basic Docker
+After configuring your `config.yaml` file above, you can run the application using Docker.
+
+### Option A: Docker Compose (Recommended)
 ```bash
-# Build and run
-docker build -t metadata-extractor .
-docker run -p 5000:5000 metadata-extractor
-```
+# Build and run with docker-compose
+docker-compose up --build
 
-### Docker Compose
-Create `docker-compose.yml`:
-```yaml
-version: '3.8'
+# Build without cache (clean build)
+docker-compose build --no-cache
 
-services:
-  metadata-extractor:
-    build: .
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./config.yaml:/app/config.yaml
-```
+# Run in background
+docker-compose up -d
 
-Run with:
-```bash
-docker-compose up
-```
-
-## Running the Application
-
-### Starting the Application
-```bash
-# With Docker (recommended)
-docker run -p 5000:5000 metadata-extractor
-
-# Or with Docker Compose
-docker-compose up
+# Stop and remove containers
+docker-compose down
 
 # Open browser to http://localhost:5000
 ```
 
-### Application Usage
-1. Open http://localhost:5000 in your browser
-2. Upload your CSV file
-3. Optionally upload additional context files (.txt, .json, .pdf, .docx, .xlsx)
-4. Enter dataset name and description
-5. Review and edit AI-generated column descriptions
-6. Download metadata in JSON, DQV, or ZIP format
+### Option B: Docker Build and Run
+```bash
+# Build image
+docker build -t metadata-extractor .
 
-## Configuration Reference
+# Run container (localhost only)
+docker run -p 5000:5000 metadata-extractor
 
-### Complete config.yaml Structure
-```yaml
-# LLM Provider Configuration
-llm:
-  provider: "openai"  # "openai" or "local"
-  openai:
-    api_key: "your-openai-api-key"
-    model: "gpt-3.5-turbo"
-    max_tokens: 300
-    temperature: 0.7
-    timeout: 30
-  local:
-    api_url: "http://localhost:8000/generate"
-    max_tokens: 300
-    temperature: 0.7
-    timeout: 30
+# Run container (accessible from network)
+docker run -p 0.0.0.0:5000:5000 metadata-extractor
 
-# Application Settings
-app:
-  debug: false
-  max_file_size_mb: 30
-  session_cleanup_hours: 1
-
-# Database Configuration (Optional)
-database:
-  enabled: true
-  provider: "supabase"
-  supabase:
-    url: "https://your-project.supabase.co"
-    key: "your-supabase-anon-key"
-    auto_save: true
-    bucket_name: "dataset-metadata"
-
-# Logging
-logging:
-  level: "INFO"
-  show_prompts: true
+# Open browser to http://localhost:5000
+# For network access: http://YOUR_IP_ADDRESS:5000
 ```
-
-### OpenAI Model Options
-- `gpt-3.5-turbo` (default, cost-effective)
-- `gpt-4` (higher quality, more expensive)
-- `gpt-4-turbo` (latest version)
-
-### Supabase Configuration
-- **Free Tier**: 500MB database, 1GB storage
-- **Project URL**: Format `https://your-project-id.supabase.co`
-- **API Key**: The "anon public" key from Settings → API
-- **Auto-save**: Automatically saves analysis results to cloud
 
 ## Local LLM Server (Optional)
 
-### Setting Up Local Server
+### Start Local Server
 ```bash
-# Start local LLM server
-cd metadata_extractor_package/local_server
-python llm_server_ms_7b.py
+python metadata_extractor_package/local_server/llm_server_ms_7b.py
+```
 
-# Configure in config.yaml
+### Configure for Local Server
+Edit `config.yaml`:
+```yaml
 llm:
   provider: "local"
   local:
     api_url: "http://localhost:8000/generate"
 ```
-
 ### Requirements for Local LLM
 - GPU with 8GB+ VRAM recommended
 - 16GB+ system RAM
 - CUDA-compatible GPU and drivers
+
+## Supported File Types
+
+### Main Dataset
+- CSV files (.csv)
+
+### Additional Context Files
+- Text files (.txt)
+- JSON files (.json) 
+- PDF files (.pdf)
+- Word documents (.docx)
+- Excel files (.xlsx)
+- Additional CSV files (.csv)
+
+## Health Check
+Visit: `http://localhost:5000/health`
+
+## Troubleshooting
+
+### Common Issues
+
+#### Configuration Problems
+- Check `config.yaml` exists and has valid values
+- Ensure API keys are correctly set
+- Verify Supabase credentials if using cloud database
+
+#### Dependencies
+```bash
+pip install --upgrade -r requirements.txt
+```
+
+#### Database Connection
+```bash
+python metadata_extractor_package/setup_database.py
+```
+
+#### File Upload Issues
+- Check file size (max 30MB)
+- Verify supported file format
+- Ensure sufficient disk space
 
 ---
 

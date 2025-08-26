@@ -1,3 +1,11 @@
+"""
+Main Flask application for Dataset Metadata Extraction Tool.
+
+Handles web routes, file uploads, AI-powered column analysis,
+and cloud database integration for metadata storage.
+"""
+
+import sys
 from flask import Flask, render_template, request, jsonify, send_file
 import os
 import tempfile
@@ -19,17 +27,23 @@ from metadata_export import export_json, export_dqv, export_zip
 # Import cloud database manager
 try:
     from cloud_database import CloudDatabaseManager
+
     CLOUD_DB_AVAILABLE = True
 except ImportError:
     CLOUD_DB_AVAILABLE = False
     print("⚠️ Cloud database not available. Install with: pip install supabase")
 
+# Global application state
+LLM_CONNECTION_STATUS = {
+    'is_connected': False,
+    'tested_at_startup': False
+}
+
 # Initialize Flask app
 app = Flask(__name__)
 
-# Load configuration (no more .env files!)
+# Load configuration
 CONFIG = load_config()
-
 app.config['MAX_CONTENT_LENGTH'] = CONFIG['app']['max_file_size_mb'] * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
@@ -49,38 +63,44 @@ if CLOUD_DB_AVAILABLE and is_database_enabled(CONFIG):
         print(f"❌ Cloud database failed: {e}")
 
 
+def initialize_llm_status():
+    """Test LLM connection once and cache the result."""
+    if not LLM_CONNECTION_STATUS['tested_at_startup']:
+        print("🧪 Testing LLM connection...")
+        llm_works = test_llm_connection(CONFIG, openai_client)
+
+        LLM_CONNECTION_STATUS['is_connected'] = llm_works
+        LLM_CONNECTION_STATUS['tested_at_startup'] = True
+
+        if llm_works:
+            print("✅ LLM initialized and connected")
+        else:
+            print("❌ LLM connection failed")
+
+        return llm_works
+
+    return LLM_CONNECTION_STATUS['is_connected']
+
+
 def handle_error(error_msg, status_code=500):
-    """Unified error handling"""
+    """Unified error handling with logging."""
     print(f"Error: {error_msg}")
     return jsonify({'error': error_msg}), status_code
 
 
 def save_to_cloud(session_id, metadata, zip_path, original_filename):
-    """Enhanced cloud save function with better error handling and logging"""
-    if not cloud_db_manager:
-        print("❌ Cloud database manager is not available")
+    """Save dataset to cloud database with comprehensive logging."""
+    if not cloud_db_manager or not session_id or not metadata or not metadata.get('columns'):
         return False
 
-    if not session_id:
-        print("❌ Session ID is missing")
-        return False
-
-    if not metadata or not metadata.get('columns'):
-        print("❌ Metadata is missing or has no columns")
-        return False
-
-    if not os.path.exists(zip_path):
-        print(f"❌ ZIP file not found: {zip_path}")
+    if not os.path.exists(zip_path) or os.path.getsize(zip_path) == 0:
         return False
 
     try:
-        file_size = os.path.getsize(zip_path)
         print(f"💾 Saving to cloud database...")
         print(f"   Session ID: {session_id}")
         print(f"   Dataset: {metadata.get('dataset_name', 'Unknown')}")
         print(f"   Columns: {len(metadata.get('columns', []))}")
-        print(f"   ZIP file: {zip_path}")
-        print(f"   File size: {file_size} bytes")
 
         result = cloud_db_manager.save_dataset_metadata(
             session_id=session_id,
@@ -89,31 +109,28 @@ def save_to_cloud(session_id, metadata, zip_path, original_filename):
             original_filename=original_filename
         )
 
-        print(f"📊 Cloud save result: {result}")
-
         if result and result.get('success'):
             print(f"✅ Cloud save successful!")
-            print(f"   File ID: {result.get('file_id')}")
-            print(f"   ZIP filename: {result.get('zip_filename')}")
             return True
         else:
-            error_msg = result.get('error') if result else 'No result returned'
-            print(f"❌ Cloud save failed: {error_msg}")
+            print(f"❌ Cloud save failed: {result.get('error', 'Unknown error')}")
             return False
 
     except Exception as e:
         print(f"❌ Cloud save error: {e}")
-        print(f"🔍 Traceback: {traceback.format_exc()}")
         return False
 
 
 @app.route('/')
 def index():
+    """Serve the main application interface."""
+    initialize_llm_status()
     return render_template('index.html')
 
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    """Handle CSV file upload and optional context file processing."""
     try:
         # Validate and process CSV
         csv_file = request.files.get('file')
@@ -140,6 +157,7 @@ def upload_file():
             extra_content = read_extra_file(extra_filepath)
             extra_filename = extra_file.filename
 
+            # Cleanup temporary file
             try:
                 os.remove(extra_filepath)
             except:
@@ -167,6 +185,7 @@ def upload_file():
 
 @app.route('/set_dataset_info', methods=['POST'])
 def set_dataset_info():
+    """Update dataset name and description in session."""
     try:
         data = request.json
         success = update_dataset_metadata(data.get('session_id'), data.get('name'), data.get('description'))
@@ -177,6 +196,7 @@ def set_dataset_info():
 
 @app.route('/analyze_column', methods=['POST'])
 def analyze_column_endpoint():
+    """Analyze a specific column with AI-powered description and type detection."""
     try:
         data = request.json
         session_id, column_name = data.get('session_id'), data.get('column_name')
@@ -222,6 +242,7 @@ def analyze_column_endpoint():
 
 @app.route('/reanalyze_type', methods=['POST'])
 def reanalyze_type():
+    """Reanalyze column type based on updated description."""
     try:
         data = request.json
         session_id, column_name = data.get('session_id'), data.get('column_name')
@@ -259,6 +280,7 @@ def reanalyze_type():
 
 @app.route('/confirm_column', methods=['POST'])
 def confirm_column_endpoint():
+    """Confirm final column metadata after user review."""
     try:
         data = request.json
         success = confirm_column(
@@ -272,6 +294,7 @@ def confirm_column_endpoint():
 
 @app.route('/get_metadata', methods=['POST'])
 def get_metadata():
+    """Generate final metadata and optionally save to cloud."""
     try:
         session_id = request.json.get('session_id')
         session_data = get_session(session_id)
@@ -285,71 +308,36 @@ def get_metadata():
         }
 
         print(f"📊 Generated metadata for session {session_id}")
-        print(f"   Dataset: {metadata.get('dataset_name')}")
-        print(f"   Columns: {len(metadata.get('columns', []))}")
 
         # Auto-save to cloud database if enabled
         if cloud_db_manager and is_auto_save_enabled(CONFIG) and len(metadata.get('columns', [])) > 0:
             try:
-                print("🔄 Auto-save is enabled, attempting to save...")
-
-                # Get session data for ZIP creation
-                dataset = session_data['dataset']
-                extra_content = session_data.get('extra_content', '')
-                extra_filename = session_data.get('extra_filename', '')
-
-                print(f"📁 Dataset shape: {dataset.shape}")
-                print(f"📄 Extra file: {extra_filename}")
+                print("📄 Auto-save is enabled, attempting to save...")
 
                 # Generate ZIP file
-                print("🗜️  Creating ZIP file...")
+                dataset = session_data['dataset']
                 zip_filepath, zip_filename = export_zip(
-                    metadata, session_id, dataset, extra_filename, extra_content
+                    metadata, session_id, dataset,
+                    session_data.get('extra_filename', ''),
+                    session_data.get('extra_content', '')
                 )
-
-                print(f"📦 ZIP created: {zip_filename}")
-                print(f"📁 ZIP path: {zip_filepath}")
-
-                # Verify ZIP file was created
-                if not os.path.exists(zip_filepath):
-                    print("❌ ZIP file was not created")
-                    raise Exception("ZIP file creation failed")
-
-                file_size = os.path.getsize(zip_filepath)
-                if file_size == 0:
-                    print("❌ ZIP file is empty")
-                    raise Exception("ZIP file is empty")
-
-                print(f"✅ ZIP file verified: {file_size} bytes")
 
                 # Save to cloud
                 original_filename = f"{metadata.get('dataset_name', 'dataset')}.csv"
                 save_success = save_to_cloud(session_id, metadata, zip_filepath, original_filename)
 
-                # Clean up temporary ZIP file
+                # Cleanup temporary ZIP file
                 try:
                     if os.path.exists(zip_filepath):
                         os.remove(zip_filepath)
-                        print("🧹 Cleaned up temporary ZIP file")
-                except Exception as cleanup_error:
-                    print(f"⚠️ Could not clean up ZIP file: {cleanup_error}")
+                except Exception:
+                    pass
 
                 if save_success:
                     print("🎉 Auto-save completed successfully!")
-                else:
-                    print("⚠️ Auto-save failed but continuing...")
 
             except Exception as auto_save_error:
                 print(f"⚠️ Auto-save to cloud database failed: {auto_save_error}")
-                print(f"🔍 Auto-save traceback: {traceback.format_exc()}")
-                # Don't fail the main request if cloud save fails
-        else:
-            if not cloud_db_manager:
-                print("ℹ️  Cloud database manager not available")
-            elif not is_auto_save_enabled(CONFIG):
-                print("ℹ️  Auto-save is disabled in configuration")
-            elif len(metadata.get('columns', [])) == 0:
-                print("ℹ️  No columns to save")
 
         return jsonify(metadata)
 
@@ -359,6 +347,7 @@ def get_metadata():
 
 @app.route('/download_metadata', methods=['POST'])
 def download_metadata():
+    """Download metadata in specified format (JSON, DQV, or ZIP)."""
     try:
         data = request.json
         session_id, format_type = data.get('session_id'), data.get('format', 'json')
@@ -391,11 +380,7 @@ def download_metadata():
                 try:
                     print("💾 Saving ZIP download to cloud database...")
                     original_filename = f"{metadata.get('dataset_name', 'dataset')}.csv"
-                    save_success = save_to_cloud(session_id, metadata, filepath, original_filename)
-                    if save_success:
-                        print("✅ ZIP download saved to cloud successfully")
-                    else:
-                        print("⚠️ ZIP download cloud save failed")
+                    save_to_cloud(session_id, metadata, filepath, original_filename)
                 except Exception as e:
                     print(f"⚠️ ZIP download cloud save failed: {e}")
         else:
@@ -411,57 +396,9 @@ def download_metadata():
         return handle_error(f'Download failed: {str(e)}')
 
 
-# Cloud database routes (if enabled)
-@app.route('/cloud_datasets', methods=['GET'])
-def get_cloud_datasets():
-    if not cloud_db_manager:
-        return handle_error('Cloud database not available', 400)
-
-    try:
-        limit = request.args.get('limit', 50, type=int)
-        datasets = cloud_db_manager.get_dataset_list(limit=limit)
-        return jsonify({'datasets': datasets, 'total': len(datasets)})
-    except Exception as e:
-        return handle_error(str(e))
-
-
-@app.route('/cloud_dataset/<file_id>', methods=['GET'])
-def get_cloud_dataset(file_id):
-    if not cloud_db_manager:
-        return handle_error('Cloud database not available', 400)
-
-    try:
-        dataset = cloud_db_manager.get_dataset_metadata(file_id)
-        return jsonify(dataset) if dataset else handle_error('Dataset not found', 404)
-    except Exception as e:
-        return handle_error(str(e))
-
-
-@app.route('/cloud_dataset/<file_id>', methods=['DELETE'])
-def delete_cloud_dataset(file_id):
-    if not cloud_db_manager:
-        return handle_error('Cloud database not available', 400)
-
-    try:
-        success = cloud_db_manager.delete_dataset(file_id)
-        return jsonify({'success': success}) if success else handle_error('Failed to delete dataset', 400)
-    except Exception as e:
-        return handle_error(str(e))
-
-
-@app.route('/cloud_usage', methods=['GET'])
-def get_cloud_usage():
-    if not cloud_db_manager:
-        return handle_error('Cloud database not available', 400)
-
-    try:
-        return jsonify(cloud_db_manager.get_storage_usage())
-    except Exception as e:
-        return handle_error(str(e))
-
-
 @app.route('/auto_confirm_columns', methods=['POST'])
 def auto_confirm_columns():
+    """Auto-confirm all analyzed columns for quick completion."""
     try:
         session_id = request.json.get('session_id')
         success = auto_confirm_all_columns(session_id)
@@ -477,64 +414,39 @@ def auto_confirm_columns():
         return handle_error(str(e))
 
 
-@app.route('/test_cloud_save', methods=['POST'])
-def test_cloud_save():
-    """Test endpoint to manually trigger cloud save"""
-    try:
-        session_id = request.json.get('session_id')
-        if not session_id:
-            return jsonify({'error': 'session_id required'}), 400
-
-        print(f"🧪 Testing cloud save for session: {session_id}")
-
-        session_data = get_session(session_id)
-        if not session_data:
-            return jsonify({'error': 'Invalid session'}), 400
-
-        # Create metadata
-        metadata = {
-            "dataset_name": session_data['metadata'].get('dataset_name', 'Test Dataset'),
-            "dataset_description": session_data['metadata'].get('dataset_description', 'Test Description'),
-            "columns": session_data.get('columns_processed', [])
-        }
-
-        if len(metadata['columns']) == 0:
-            return jsonify({'error': 'No columns to save'}), 400
-
-        # Create ZIP
-        dataset = session_data['dataset']
-        zip_filepath, zip_filename = export_zip(
-            metadata, session_id, dataset,
-            session_data.get('extra_filename', ''),
-            session_data.get('extra_content', '')
-        )
-
-        # Save to cloud
-        success = save_to_cloud(
-            session_id, metadata, zip_filepath,
-            f"{metadata.get('dataset_name', 'dataset')}.csv"
-        )
-
-        # Cleanup
-        if os.path.exists(zip_filepath):
-            os.remove(zip_filepath)
-
-        return jsonify({
-            'success': success,
-            'message': 'Cloud save test completed',
-            'columns_count': len(metadata['columns']),
-            'cloud_db_available': cloud_db_manager is not None,
-            'auto_save_enabled': is_auto_save_enabled(CONFIG)
-        })
-
-    except Exception as e:
-        print(f"❌ Test cloud save failed: {e}")
-        print(f"🔍 Traceback: {traceback.format_exc()}")
-        return jsonify({'error': str(e)}), 500
-
-
 @app.route('/health', methods=['GET'])
 def health_check():
+    """Basic health check endpoint."""
+    try:
+        initialize_llm_status()
+        llm_status_text = 'connected' if LLM_CONNECTION_STATUS['is_connected'] else 'disconnected'
+
+        cloud_db_status = False
+        cloud_db_info = "disabled"
+        if cloud_db_manager:
+            try:
+                usage = cloud_db_manager.get_storage_usage()
+                cloud_db_status = True
+                cloud_db_info = f"connected ({usage['total_files']} files, {usage['total_size_mb']} MB)"
+            except Exception as e:
+                cloud_db_info = f"error: {str(e)}"
+
+        return jsonify({
+            'status': 'healthy',
+            'llm_status': llm_status_text,
+            'llm_provider': CONFIG['llm']['provider'],
+            'cloud_db_status': 'connected' if cloud_db_status else 'disconnected',
+            'cloud_db_info': cloud_db_info,
+            'auto_save_enabled': is_auto_save_enabled(CONFIG),
+            'version': '2.1.0'
+        })
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
+
+@app.route('/health/detailed', methods=['GET'])
+def detailed_health_check():
+    """Detailed health check that tests LLM connection fresh."""
     try:
         llm_status = test_llm_connection(CONFIG, openai_client)
 
@@ -555,32 +467,82 @@ def health_check():
             'cloud_db_status': 'connected' if cloud_db_status else 'disconnected',
             'cloud_db_info': cloud_db_info,
             'auto_save_enabled': is_auto_save_enabled(CONFIG),
-            'version': '2.1.0'
+            'version': '2.1.0',
+            'note': 'Fresh LLM connectivity test performed'
         })
     except Exception as e:
         return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
 
 
-@app.route("/supabase-health")
-def supabase_health():
+# Cloud database routes (if enabled)
+@app.route('/cloud_datasets', methods=['GET'])
+def get_cloud_datasets():
+    """Get list of datasets from cloud database."""
     if not cloud_db_manager:
-        return jsonify({'error': 'Cloud database not available'}), 400
-    return cloud_db_manager.health_check()
+        return handle_error('Cloud database not available', 400)
+
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        datasets = cloud_db_manager.get_dataset_list(limit=limit)
+        return jsonify({'datasets': datasets, 'total': len(datasets)})
+    except Exception as e:
+        return handle_error(str(e))
+
+
+@app.route('/cloud_dataset/<file_id>', methods=['GET'])
+def get_cloud_dataset(file_id):
+    """Get specific dataset metadata from cloud."""
+    if not cloud_db_manager:
+        return handle_error('Cloud database not available', 400)
+
+    try:
+        dataset = cloud_db_manager.get_dataset_metadata(file_id)
+        return jsonify(dataset) if dataset else handle_error('Dataset not found', 404)
+    except Exception as e:
+        return handle_error(str(e))
+
+
+@app.route('/cloud_dataset/<file_id>', methods=['DELETE'])
+def delete_cloud_dataset(file_id):
+    """Delete dataset from cloud database."""
+    if not cloud_db_manager:
+        return handle_error('Cloud database not available', 400)
+
+    try:
+        success = cloud_db_manager.delete_dataset(file_id)
+        return jsonify({'success': success}) if success else handle_error('Failed to delete dataset', 400)
+    except Exception as e:
+        return handle_error(str(e))
+
+
+@app.route('/cloud_usage', methods=['GET'])
+def get_cloud_usage():
+    """Get cloud storage usage statistics."""
+    if not cloud_db_manager:
+        return handle_error('Cloud database not available', 400)
+
+    try:
+        return jsonify(cloud_db_manager.get_storage_usage())
+    except Exception as e:
+        return handle_error(str(e))
 
 
 # Error handlers
 @app.errorhandler(413)
 def too_large(e):
+    """Handle file size limit exceeded."""
     return handle_error('File too large. Maximum size exceeded.', 413)
 
 
 @app.errorhandler(404)
 def not_found(e):
+    """Handle page not found errors."""
     return handle_error('Endpoint not found', 404)
 
 
 @app.errorhandler(500)
 def internal_error(e):
+    """Handle internal server errors."""
     return handle_error('Internal server error')
 
 
@@ -591,21 +553,11 @@ if __name__ == '__main__':
     print(f"🔧 Configuration: {get_config_info(CONFIG)}")
     print(f"📁 Max file size: {CONFIG['app']['max_file_size_mb']}MB")
     print(f"☁️ Cloud Database: {'✅ Enabled' if cloud_db_manager else '❌ Disabled'}")
-    print(f"🔄 Auto-Save: {'✅ Enabled' if is_auto_save_enabled(CONFIG) else '❌ Disabled'}")
+    print(f"💾 Auto-Save: {'✅ Enabled' if is_auto_save_enabled(CONFIG) else '❌ Disabled'}")
 
-    # Quick LLM test
-    print("🧪 Testing LLM connection...")
-    llm_works = test_llm_connection(CONFIG, openai_client)
+    # Test LLM connection for direct Python runs
+    llm_works = initialize_llm_status()
 
-    if llm_works:
-        print("🤖 LLM Status: ✅ Connected")
-        print("🚀 Starting server at http://localhost:5000")
-        print("=" * 60)
-        app.run(debug=CONFIG['app']['debug'], host='0.0.0.0', port=5000)
-    else:
-        print("🤖 LLM Status: ❌ Failed")
-        print("\n💀 Cannot start - LLM connection failed!")
-        print("Please check your API key/endpoint in config.yaml")
-        sys.exit(1)
-
+    print("🚀 Starting server at http://localhost:5000")
+    print("=" * 60)
     app.run(debug=CONFIG['app']['debug'], host='0.0.0.0', port=5000)

@@ -1,5 +1,8 @@
 """
-Optimized metadata export functionality with clean filenames
+Metadata export functionality with clean filenames.
+
+Handles exporting dataset metadata in JSON, DQV (RDF/Turtle), and ZIP formats
+with proper file naming and content organization.
 """
 
 import json
@@ -13,7 +16,7 @@ from datetime import datetime
 from rdflib import Graph, Namespace, Literal, URIRef, BNode
 from rdflib.namespace import RDF, RDFS, XSD, DCTERMS
 
-# Define namespaces
+# Define namespaces for RDF/DQV export
 DQV = Namespace("http://www.w3.org/ns/dqv#")
 DCAT = Namespace("http://www.w3.org/ns/dcat#")
 PROV = Namespace("http://www.w3.org/ns/prov#")
@@ -22,49 +25,12 @@ SCHEMA = Namespace("http://schema.org/")
 DATASET = Namespace("http://example.org/dataset/")
 METRICS = Namespace("http://example.org/metrics/")
 
-def make_json_serializable(obj):
-    """Convert numpy types to JSON-serializable types"""
-    if isinstance(obj, (np.integer, np.int64, np.int32)):
-        return int(obj)
-    elif isinstance(obj, (np.floating, np.float64, np.float32)):
-        return float(obj)
-    elif isinstance(obj, (np.ndarray,)):
-        return obj.tolist()
-    elif isinstance(obj, pd.Timestamp):
-        return obj.isoformat()
-    return obj
-
-def create_safe_filename(name):
-    """Create a safe filename from dataset name"""
-    if not name:
-        return 'dataset'
-    safe_name = str(name).replace(' ', '_').replace('-', '_').lower()
-    safe_name = re.sub(r'[^\w\-_]', '', safe_name)
-    return safe_name if safe_name else 'dataset'
-
-def get_file_paths(metadata, session_id, file_extension, use_clean_name=False):
-    """Generate file paths for exports"""
-    dataset_name = metadata.get('dataset_name', 'dataset')
-    safe_name = create_safe_filename(dataset_name)
-
-    if use_clean_name:
-        # Use clean filename without session ID - for final user-facing files
-        filename = f"{safe_name}_metadata.{file_extension}"
-        temp_dir = tempfile.gettempdir()
-        filepath = os.path.join(temp_dir, filename)
-    else:
-        # Use session ID for temporary internal files to avoid conflicts
-        filename = f"{safe_name}_metadata.{file_extension}"
-        temp_dir = tempfile.gettempdir()
-        filepath = os.path.join(temp_dir, f"{session_id}_{filename}")
-
-    return filepath, filename
 
 def export_json(metadata, session_id):
-    """Export metadata in JSON format"""
+    """Export metadata in JSON format."""
     try:
-        clean_metadata = json.loads(json.dumps(metadata, default=make_json_serializable))
-        filepath, filename = get_file_paths(metadata, session_id, 'json')
+        clean_metadata = json.loads(json.dumps(metadata, default=_make_json_serializable))
+        filepath, filename = _get_file_paths(metadata, session_id, 'json')
 
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -75,11 +41,12 @@ def export_json(metadata, session_id):
         print(f"Error in export_json: {e}")
         raise
 
+
 def export_dqv(metadata, session_id):
-    """Export metadata in DQV (Turtle) format"""
+    """Export metadata in DQV (Turtle) format."""
     try:
-        dqv_content = create_dqv_metadata(metadata)
-        filepath, filename = get_file_paths(metadata, session_id, 'ttl')
+        dqv_content = _create_dqv_metadata(metadata)
+        filepath, filename = _get_file_paths(metadata, session_id, 'ttl')
 
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -90,20 +57,19 @@ def export_dqv(metadata, session_id):
         print(f"Error in export_dqv: {e}")
         raise
 
-def export_zip(metadata, session_id, dataset, extra_filename="", extra_content=""):
-    """Export complete package as ZIP file with clean filename"""
-    try:
-        safe_name = create_safe_filename(metadata.get('dataset_name', 'dataset'))
 
-        # Create clean ZIP filename without session ID or UUID
+def export_zip(metadata, session_id, dataset, extra_filename="", extra_content=""):
+    """Export complete package as ZIP file with clean filename."""
+    try:
+        safe_name = _create_safe_filename(metadata.get('dataset_name', 'dataset'))
         clean_zip_filename = f"{safe_name}_package.zip"
 
-        # But create the actual file with session ID to avoid conflicts during processing
+        # Create actual file with session ID to avoid conflicts
         temp_dir = tempfile.gettempdir()
         zip_filepath = os.path.join(temp_dir, f"{session_id}_{clean_zip_filename}")
 
         print(f"📦 Creating ZIP file: {clean_zip_filename}")
-        print(f"📁 Temp path: {zip_filepath}")
+        print(f"📍 Temp path: {zip_filepath}")
 
         os.makedirs(os.path.dirname(zip_filepath), exist_ok=True)
 
@@ -119,14 +85,12 @@ def export_zip(metadata, session_id, dataset, extra_filename="", extra_content="
         # Create extra file if content exists
         extra_filepath = None
         if extra_content and extra_filename:
-            # Keep original extra filename for clarity
             extra_filepath = os.path.join(temp_dir, f"{session_id}_{extra_filename}")
             with open(extra_filepath, 'w', encoding='utf-8') as f:
                 f.write(extra_content)
 
         # Create ZIP with clean internal filenames
         with zipfile.ZipFile(zip_filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Add files to ZIP with clean names (no session IDs in ZIP contents)
             zipf.write(csv_filepath, csv_filename)
             zipf.write(json_filepath, json_filename)
             zipf.write(dqv_filepath, dqv_filename)
@@ -135,29 +99,70 @@ def export_zip(metadata, session_id, dataset, extra_filename="", extra_content="
                 zipf.write(extra_filepath, extra_filename)
 
             # Add README
-            readme_content = create_readme_content(metadata, extra_filename)
+            readme_content = _create_readme_content(metadata, extra_filename)
             zipf.writestr("README.txt", readme_content)
 
         # Cleanup temporary files
         for filepath in [json_filepath, dqv_filepath, csv_filepath, extra_filepath]:
-            if filepath and os.path.exists(filepath):
-                try:
-                    os.remove(filepath)
-                except:
-                    pass
+            _safe_delete(filepath)
 
         print(f"✅ ZIP created successfully: {clean_zip_filename}")
         print(f"📏 ZIP file size: {os.path.getsize(zip_filepath)} bytes")
 
-        # Return the temp path for processing, but clean filename for display
         return zip_filepath, clean_zip_filename
 
     except Exception as e:
         print(f"Error in export_zip: {e}")
         raise
 
-def create_readme_content(metadata, extra_filename=""):
-    """Create README content for ZIP package"""
+
+# Private helper functions
+
+def _safe_delete(filepath):
+    """Safely delete a file without throwing errors."""
+    try:
+        if filepath and os.path.exists(filepath):
+            os.remove(filepath)
+    except:
+        pass
+
+
+def _make_json_serializable(obj):
+    """Convert numpy types to JSON-serializable types."""
+    if isinstance(obj, (np.integer, np.int64, np.int32)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+        return float(obj)
+    elif isinstance(obj, (np.ndarray,)):
+        return obj.tolist()
+    elif isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+    return obj
+
+
+def _create_safe_filename(name):
+    """Create a safe filename from dataset name."""
+    if not name:
+        return 'dataset'
+    safe_name = str(name).replace(' ', '_').replace('-', '_').lower()
+    safe_name = re.sub(r'[^\w\-_]', '', safe_name)
+    return safe_name if safe_name else 'dataset'
+
+
+def _get_file_paths(metadata, session_id, file_extension):
+    """Generate file paths for exports."""
+    dataset_name = metadata.get('dataset_name', 'dataset')
+    safe_name = _create_safe_filename(dataset_name)
+
+    filename = f"{safe_name}_metadata.{file_extension}"
+    temp_dir = tempfile.gettempdir()
+    filepath = os.path.join(temp_dir, f"{session_id}_{filename}")
+
+    return filepath, filename
+
+
+def _create_readme_content(metadata, extra_filename=""):
+    """Create README content for ZIP package."""
     dataset_name = metadata.get('dataset_name', 'Dataset')
     dataset_description = metadata.get('dataset_description', 'No description')
     columns = metadata.get('columns', [])
@@ -168,9 +173,9 @@ def create_readme_content(metadata, extra_filename=""):
 {dataset_description}
 
 ## Package Contents
-- **Dataset**: {create_safe_filename(dataset_name)}_dataset.csv (Original data)
-- **JSON Metadata**: {create_safe_filename(dataset_name)}_metadata.json (Structured metadata)
-- **DQV Metadata**: {create_safe_filename(dataset_name)}_metadata.ttl (W3C DQV format)
+- **Dataset**: {_create_safe_filename(dataset_name)}_dataset.csv (Original data)
+- **JSON Metadata**: {_create_safe_filename(dataset_name)}_metadata.json (Structured metadata)
+- **DQV Metadata**: {_create_safe_filename(dataset_name)}_metadata.ttl (W3C DQV format)
 """
 
     if extra_filename:
@@ -207,8 +212,9 @@ def create_readme_content(metadata, extra_filename=""):
 
     return readme
 
-def create_dqv_metadata(json_metadata):
-    """Convert JSON metadata to DQV RDF format"""
+
+def _create_dqv_metadata(json_metadata):
+    """Convert JSON metadata to DQV RDF format."""
     try:
         g = Graph()
 
@@ -222,7 +228,7 @@ def create_dqv_metadata(json_metadata):
 
         # Create dataset
         dataset_name = json_metadata.get("dataset_name", "dataset")
-        dataset_name_clean = create_safe_filename(dataset_name)
+        dataset_name_clean = _create_safe_filename(dataset_name)
         dataset_uri = DATASET[dataset_name_clean]
 
         g.add((dataset_uri, RDF.type, DCAT.Dataset))
@@ -233,15 +239,15 @@ def create_dqv_metadata(json_metadata):
         columns = json_metadata.get("columns", [])
 
         # Add column count metric
-        add_metric(g, METRICS.columnCount, "Column Count", "Total columns in dataset",
-                  dataset_uri, len(columns), XSD.integer, DQV.completeness)
+        _add_metric(g, METRICS.columnCount, "Column Count", "Total columns in dataset",
+                   dataset_uri, len(columns), XSD.integer, DQV.completeness)
 
         # Process each column
         for column in columns:
             if not column or not column.get('name'):
                 continue
 
-            column_name_clean = create_safe_filename(column["name"])
+            column_name_clean = _create_safe_filename(column["name"])
             column_uri = DATASET[f"{dataset_name_clean}/column/{column_name_clean}"]
 
             # Column description
@@ -252,10 +258,10 @@ def create_dqv_metadata(json_metadata):
             g.add((dataset_uri, SCHEMA.variableMeasured, column_uri))
 
             # Add quality metrics
-            add_column_metrics(g, column_uri, column)
+            _add_column_metrics(g, column_uri, column)
 
         # Add provenance
-        add_provenance(g, dataset_uri)
+        _add_provenance(g, dataset_uri)
 
         return g.serialize(format='turtle')
 
@@ -273,8 +279,9 @@ dataset:dataset a dcat:Dataset ;
     dcterms:created "{datetime.now().isoformat()}"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
 """
 
-def add_metric(g, metric_uri, label, description, subject_uri, value, datatype, dimension):
-    """Add a quality metric to the graph"""
+
+def _add_metric(g, metric_uri, label, description, subject_uri, value, datatype, dimension):
+    """Add a quality metric to the graph."""
     g.add((metric_uri, RDF.type, DQV.Metric))
     g.add((metric_uri, SKOS.prefLabel, Literal(label)))
     g.add((metric_uri, DCTERMS.description, Literal(description)))
@@ -286,20 +293,21 @@ def add_metric(g, metric_uri, label, description, subject_uri, value, datatype, 
     g.add((measurement, DQV.isMeasurementOf, metric_uri))
     g.add((measurement, DQV.value, Literal(value, datatype=datatype)))
 
-def add_column_metrics(g, column_uri, column):
-    """Add quality metrics for a column"""
+
+def _add_column_metrics(g, column_uri, column):
+    """Add quality metrics for a column."""
     try:
         # Data type metric
-        add_metric(g, METRICS.dataType, "Data Type", "Semantic data type",
-                  column_uri, column.get("type", "unknown"), None, DQV.consistency)
+        _add_metric(g, METRICS.dataType, "Data Type", "Semantic data type",
+                   column_uri, column.get("type", "unknown"), None, DQV.consistency)
 
         # Missing values metric
-        add_metric(g, METRICS.missingValues, "Missing Values", "Number of missing values",
-                  column_uri, column.get("missing_values", 0), XSD.integer, DQV.completeness)
+        _add_metric(g, METRICS.missingValues, "Missing Values", "Number of missing values",
+                   column_uri, column.get("missing_values", 0), XSD.integer, DQV.completeness)
 
         # Unique values metric
-        add_metric(g, METRICS.uniqueValues, "Unique Values", "Number of unique values",
-                  column_uri, column.get("unique_values", 0), XSD.integer, DQV.completeness)
+        _add_metric(g, METRICS.uniqueValues, "Unique Values", "Number of unique values",
+                   column_uri, column.get("unique_values", 0), XSD.integer, DQV.completeness)
 
         # Numerical statistics for continuous columns
         if column.get("type") == "continuous" and "mean" in column and column["mean"] is not None:
@@ -310,14 +318,15 @@ def add_column_metrics(g, column_uri, column):
                 ("max", "Maximum Value", "Maximum value")
             ]:
                 if stat in column and column[stat] is not None:
-                    add_metric(g, getattr(METRICS, stat + 'Value'), label, desc,
-                              column_uri, column[stat], XSD.double, DQV.accuracy)
+                    _add_metric(g, getattr(METRICS, stat + 'Value'), label, desc,
+                               column_uri, column[stat], XSD.double, DQV.accuracy)
 
     except Exception as e:
         print(f"Error adding column metrics: {e}")
 
-def add_provenance(g, dataset_uri):
-    """Add provenance information"""
+
+def _add_provenance(g, dataset_uri):
+    """Add provenance information."""
     try:
         activity = BNode()
         g.add((activity, RDF.type, PROV.Activity))

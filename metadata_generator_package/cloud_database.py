@@ -1,5 +1,8 @@
 """
-Cloud Database Manager for Supabase integration
+Cloud Database Manager for Supabase integration.
+
+Handles dataset metadata storage, file uploads, and database operations
+for persistent cloud storage of analysis results.
 """
 
 import os
@@ -16,50 +19,19 @@ try:
 except ImportError:
     SUPABASE_AVAILABLE = False
 
+
 class CloudDatabaseManager:
-    """Cloud Database Manager for Supabase integration"""
+    """Cloud Database Manager for Supabase integration."""
 
     def __init__(self, supabase_url: str, supabase_key: str):
-        #if not SUPABASE_AVAILABLE:
-         #   raise ImportError("Supabase package not available. Install with: pip install supabase")
-
         self.client: Client = create_client(supabase_url, supabase_key)
         self.bucket_name = "dataset-metadata"
         print(f"CloudDatabaseManager initialized")
 
-    def _log(self, message: str, is_error: bool = False):
-        """Simple logging helper"""
-        prefix = "❌" if is_error else "✅"
-        print(f"{prefix} {message}")
-
-    def _handle_error(self, operation: str, error: Exception) -> Dict[str, Any]:
-        """Unified error handling"""
-        error_msg = f"{operation} failed: {error}"
-        self._log(error_msg, True)
-        return {"success": False, "error": str(error)}
-
-    def _create_clean_filename(self, dataset_name: str) -> str:
-        """Create a clean filename from dataset name"""
-        if not dataset_name:
-            return "dataset_package.zip"
-
-        # Clean the dataset name - remove special characters, replace spaces with underscores
-        import re
-        clean_name = re.sub(r'[^\w\s-]', '', dataset_name)  # Remove special chars except spaces and hyphens
-        clean_name = re.sub(r'[-\s]+', '_', clean_name)     # Replace spaces and hyphens with underscores
-        clean_name = clean_name.strip('_').lower()          # Remove leading/trailing underscores, lowercase
-
-        # Ensure we have a valid filename
-        if not clean_name:
-            clean_name = "dataset"
-
-        return f"{clean_name}_package.zip"
-
     def save_dataset_metadata(self, session_id: str, metadata: Dict[str, Any],
                             zip_file_path: str, original_filename: str,
                             zip_download_filename: str = None) -> Dict[str, Any]:
-        """Save dataset metadata and ZIP file to cloud database"""
-
+        """Save dataset metadata and ZIP file to cloud database."""
         # Validate inputs
         if not all([session_id, metadata, zip_file_path, original_filename]):
             return {"success": False, "error": "Missing required parameters"}
@@ -74,14 +46,9 @@ class CloudDatabaseManager:
         try:
             # Generate unique identifiers
             file_id = str(uuid.uuid4())
-
-            # Create clean storage filename from dataset name
             dataset_name = metadata.get('dataset_name', 'dataset')
             clean_filename = self._create_clean_filename(dataset_name)
-
-            # For storage path, we still need uniqueness to avoid conflicts
-            # But we'll use the clean filename for the public-facing name
-            storage_filename = f"{clean_filename[:-4]}_{file_id}.zip"  # Remove .zip, add UUID, add .zip back
+            storage_filename = f"{clean_filename[:-4]}_{file_id}.zip"
             storage_path = f"datasets/{storage_filename}"
 
             self._log(f"Storing as: {clean_filename} (internal: {storage_filename})")
@@ -103,7 +70,7 @@ class CloudDatabaseManager:
                 "dataset_name": metadata.get('dataset_name', 'Unknown Dataset'),
                 "dataset_description": metadata.get('dataset_description', 'No description'),
                 "original_filename": original_filename,
-                "zip_filename": clean_filename,  # Use clean filename for display
+                "zip_filename": clean_filename,
                 "column_count": len(metadata.get('columns', [])),
                 "metadata_json": metadata,
                 "file_url": file_url,
@@ -124,7 +91,7 @@ class CloudDatabaseManager:
                     "file_url": file_url,
                     "storage_path": storage_path,
                     "storage_filename": storage_filename,
-                    "zip_filename": clean_filename,  # Return clean filename
+                    "zip_filename": clean_filename,
                     "file_size": file_size
                 }
             else:
@@ -138,7 +105,7 @@ class CloudDatabaseManager:
             return self._handle_error("Save operation", e)
 
     def get_dataset_list(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get list of datasets from cloud database"""
+        """Get list of datasets from cloud database."""
         try:
             result = self.client.table('dataset_metadata').select(
                 'file_id, dataset_name, dataset_description, original_filename, '
@@ -151,7 +118,7 @@ class CloudDatabaseManager:
             return []
 
     def get_dataset_metadata(self, file_id: str) -> Optional[Dict[str, Any]]:
-        """Get specific dataset metadata"""
+        """Get specific dataset metadata by file ID."""
         try:
             result = self.client.table('dataset_metadata').select('*').eq('file_id', file_id).execute()
             return result.data[0] if result.data else None
@@ -160,7 +127,7 @@ class CloudDatabaseManager:
             return None
 
     def delete_dataset(self, file_id: str) -> bool:
-        """Delete dataset from cloud database"""
+        """Delete dataset from cloud database and storage."""
         try:
             # Get storage path
             dataset = self.get_dataset_metadata(file_id)
@@ -188,7 +155,7 @@ class CloudDatabaseManager:
             return False
 
     def get_storage_usage(self) -> Dict[str, Any]:
-        """Get storage usage statistics"""
+        """Get storage usage statistics."""
         try:
             result = self.client.table('dataset_metadata').select('file_size').execute()
 
@@ -217,7 +184,7 @@ class CloudDatabaseManager:
             }
 
     def health_check(self) -> Dict[str, Any]:
-        """Comprehensive health check"""
+        """Comprehensive health check for database and storage connections."""
         health_status = {
             'database_connection': False,
             'storage_connection': False,
@@ -247,3 +214,33 @@ class CloudDatabaseManager:
             health_status['error'] = str(e)
 
         return health_status
+
+    # Private helper methods
+
+    def _log(self, message: str, is_error: bool = False):
+        """Simple logging helper with consistent formatting."""
+        prefix = "❌" if is_error else "✅"
+        print(f"{prefix} {message}")
+
+    def _handle_error(self, operation: str, error: Exception) -> Dict[str, Any]:
+        """Unified error handling with logging."""
+        error_msg = f"{operation} failed: {error}"
+        self._log(error_msg, True)
+        return {"success": False, "error": str(error)}
+
+    def _create_clean_filename(self, dataset_name: str) -> str:
+        """Create a clean filename from dataset name."""
+        if not dataset_name:
+            return "dataset_package.zip"
+
+        # Clean the dataset name - remove special characters, replace spaces with underscores
+        import re
+        clean_name = re.sub(r'[^\w\s-]', '', dataset_name)  # Remove special chars except spaces and hyphens
+        clean_name = re.sub(r'[-\s]+', '_', clean_name)     # Replace spaces and hyphens with underscores
+        clean_name = clean_name.strip('_').lower()          # Remove leading/trailing underscores, lowercase
+
+        # Ensure we have a valid filename
+        if not clean_name:
+            clean_name = "dataset"
+
+        return f"{clean_name}_package.zip"

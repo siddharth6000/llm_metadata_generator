@@ -1,7 +1,10 @@
+# Dataset Metadata Extraction Tool - Docker Compose Configuration
+# Provides production and development container orchestration with persistent storage
+
 version: '3.8'
 
 services:
-  # Main application service
+  # Main production application service
   metadata-tool:
     build:
       context: .
@@ -13,28 +16,22 @@ services:
       # Flask configuration
       - FLASK_ENV=production
       - FLASK_DEBUG=false
-
-      # LLM Configuration (override via .env file)
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-
-      # Supabase Configuration (override via .env file)
-      - SUPABASE_URL=${SUPABASE_URL:-}
-      - SUPABASE_KEY=${SUPABASE_KEY:-}
-
-      # Application settings
       - PYTHONUNBUFFERED=1
       - TZ=UTC
 
+      # API credentials from environment variables or .env file
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+
     volumes:
-      # Mount configuration file
+      # Configuration file (read-only)
       - ./config.yaml:/app/config.yaml:ro
 
-      # Mount uploads and temp directories for persistence
+      # Persistent data storage
       - uploads-data:/app/uploads
       - temp-data:/app/temp
       - backups-data:/app/backups
-
-      # Optional: Mount logs directory
       - logs-data:/app/logs
 
     restart: unless-stopped
@@ -46,34 +43,39 @@ services:
       retries: 3
       start_period: 40s
 
-  # Development service (optional)
+  # Development service with live code reloading
   metadata-tool-dev:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: dataset-metadata-tool-dev
     ports:
-      - "5001:5000"
+      - "5001:5000"  # Different port to avoid conflicts
     environment:
+      # Development configuration
       - FLASK_ENV=development
       - FLASK_DEBUG=true
+      - PYTHONUNBUFFERED=1
+
+      # API credentials
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - SUPABASE_URL=${SUPABASE_URL:-}
       - SUPABASE_KEY=${SUPABASE_KEY:-}
-      - PYTHONUNBUFFERED=1
 
     volumes:
-      # Mount source code for development
+      # Live code reloading (mount source code)
       - .:/app
       - uploads-data:/app/uploads
       - temp-data:/app/temp
       - logs-data:/app/logs
 
     restart: unless-stopped
+
+    # Only runs when specifically requested
     profiles:
       - dev
 
-# Named volumes for data persistence
+# Persistent storage volumes
 volumes:
   uploads-data:
     driver: local
@@ -84,7 +86,7 @@ volumes:
   logs-data:
     driver: local
 
-# Networks (optional)
+# Network configuration
 networks:
   default:
     name: metadata-tool-network

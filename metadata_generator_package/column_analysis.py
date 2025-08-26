@@ -1,11 +1,16 @@
-"""Column statistical analysis and type detection functionality."""
+"""
+Column statistical analysis and type detection functionality.
+
+Provides functions to analyze pandas DataFrame columns, compute statistics,
+and detect semantic column types based on data patterns.
+"""
 
 import pandas as pd
 import random
 
 
 def analyze_column(column_data):
-    """Main function to analyze any column type"""
+    """Main function to analyze any column type and return statistics."""
     if hasattr(column_data, 'dtype') and column_data.dtype.kind in 'iuf':
         return analyze_numeric_column(column_data)
     else:
@@ -13,41 +18,33 @@ def analyze_column(column_data):
 
 
 def analyze_numeric_column(column_data):
-    """Analyze numeric column and return statistics"""
+    """Analyze numeric column and return statistical measures."""
     try:
         unique_vals = column_data.dropna().unique()
-        unique_sample = unique_vals.tolist() if len(unique_vals) <= 10 else random.sample(unique_vals.tolist(), 10)
+        unique_sample = _get_sample_values(unique_vals)
 
         return {
             "type": str(column_data.dtype),
             "unique_values": int(column_data.nunique()),
             "sample_unique_values": [str(x) for x in unique_sample],
             "missing_values": int(column_data.isnull().sum()),
-            "mean": float(column_data.mean()) if not pd.isna(column_data.mean()) else None,
-            "std": float(column_data.std()) if not pd.isna(column_data.std()) else None,
-            "min": float(column_data.min()) if not pd.isna(column_data.min()) else None,
-            "max": float(column_data.max()) if not pd.isna(column_data.max()) else None
+            "mean": _safe_float(column_data.mean()),
+            "std": _safe_float(column_data.std()),
+            "min": _safe_float(column_data.min()),
+            "max": _safe_float(column_data.max())
         }
     except Exception as e:
         print(f"Error in analyze_numeric_column: {e}")
-        return {
-            "type": str(column_data.dtype),
-            "unique_values": 0,
-            "sample_unique_values": [],
-            "missing_values": len(column_data),
-            "mean": None,
-            "std": None,
-            "min": None,
-            "max": None
-        }
+        return _create_error_stats(column_data, "numeric")
 
 
 def analyze_categorical_column(column_data):
-    """Analyze categorical column and return statistics"""
+    """Analyze categorical column and return frequency statistics."""
     try:
         unique_vals = column_data.dropna().unique()
-        unique_sample = unique_vals.tolist() if len(unique_vals) <= 10 else random.sample(unique_vals.tolist(), 10)
+        unique_sample = _get_sample_values(unique_vals)
 
+        # Get top value and frequency
         top_value = None
         top_freq = None
         if not column_data.mode().empty:
@@ -65,27 +62,20 @@ def analyze_categorical_column(column_data):
         }
     except Exception as e:
         print(f"Error in analyze_categorical_column: {e}")
-        return {
-            "type": str(column_data.dtype),
-            "unique_values": 0,
-            "sample_unique_values": [],
-            "missing_values": len(column_data),
-            "top_value": None,
-            "top_freq": None
-        }
+        return _create_error_stats(column_data, "categorical")
 
 
 def detect_column_type(series: pd.Series) -> str:
-    """Rule-based column type detection"""
+    """Rule-based column type detection for semantic classification."""
     unique_values = series.dropna().unique()
     n_unique = len(unique_values)
     dtype = series.dtype
 
-    # Binary check
+    # Binary check - exactly 2 unique values
     if n_unique == 2:
         return "binary"
 
-    # Identifier check
+    # Identifier check - column name patterns
     if series.name and (series.name.lower() in ['id', 'identifier'] or series.name.lower().endswith('_id')):
         return "identifier"
 
@@ -95,7 +85,7 @@ def detect_column_type(series: pd.Series) -> str:
         if len(non_null_series) > 0 and non_null_series.apply(lambda x: isinstance(x, str) and x.isalnum()).all():
             return "identifier"
 
-    # Free text check
+    # Free text check - average word count
     if dtype == object:
         non_null_series = series.dropna()
         if len(non_null_series) > 0:
@@ -103,19 +93,55 @@ def detect_column_type(series: pd.Series) -> str:
             if avg_word_count > 5:
                 return "free_text"
 
-    # Continuous check
+    # Continuous check - numeric with many unique values
     if pd.api.types.is_numeric_dtype(series):
         if n_unique > 15:
             return "continuous"
 
-    # Ordinal check (manual or based on known categories)
+    # Ordinal check - known ordinal categories
     known_ordinal = {'low', 'medium', 'high', 'bad', 'average', 'good', 'excellent', 'small', 'large'}
     if dtype == object and len(unique_values) > 0:
         if any(str(val).lower() in known_ordinal for val in unique_values if val is not None):
             return "ordinal"
 
-    # Categorical (fallback)
+    # Default categorization
     if n_unique < 15:
         return "categorical"
 
     return "categorical" if dtype == object else "continuous"
+
+
+# Private helper functions
+
+def _get_sample_values(unique_vals):
+    """Get sample of unique values for display."""
+    if len(unique_vals) <= 10:
+        return unique_vals.tolist()
+    else:
+        return random.sample(unique_vals.tolist(), 10)
+
+
+def _safe_float(value):
+    """Convert value to float, return None if invalid."""
+    if pd.isna(value):
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _create_error_stats(column_data, column_type):
+    """Create default statistics when analysis fails."""
+    return {
+        "type": str(column_data.dtype),
+        "unique_values": 0,
+        "sample_unique_values": [],
+        "missing_values": len(column_data),
+        "mean": None if column_type == "numeric" else None,
+        "std": None if column_type == "numeric" else None,
+        "min": None if column_type == "numeric" else None,
+        "max": None if column_type == "numeric" else None,
+        "top_value": None if column_type == "categorical" else None,
+        "top_freq": None if column_type == "categorical" else None
+    }

@@ -643,6 +643,38 @@
             margin-bottom: 25px;
             line-height: 1.6;
         }
+
+        /* Auto-save indicator animation */
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(100px); }
+            15% { opacity: 1; transform: translateX(0); }
+            85% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(100px); }
+        }
+
+        /* Column name container for same-line display */
+        .column-name-container {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .column-name-label {
+            font-size: 1.1rem;
+            color: #7f8c8d;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .column-name-display {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            line-height: 1.2;
+        }
     </style>
 </head>
 <body>
@@ -1474,7 +1506,13 @@
             const html = `
                 <div class="column-analysis">
                     <div class="column-header">
-                        <div class="column-name">${columnName} (${currentColumnIndex + 1}/${columns.length})</div>
+                        <div>
+                            <div class="column-name-container">
+                                <div class="column-name-label">Column Name:</div>
+                                <div class="column-name-display">${columnName}</div>
+                            </div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem; margin-top: 5px;">(${currentColumnIndex + 1}/${columns.length})</div>
+                        </div>
                     </div>
 
                     <div class="stats-grid">
@@ -1505,22 +1543,24 @@
                     <h4>Sample Values:</h4>
                     <div class="sample-values">${stats.sample_unique_values.slice(0, 5).join(', ')}</div>
 
-                    <!-- DESCRIPTION FIRST -->
+                    <!-- DESCRIPTION SECTION WITH AUTO-SAVE -->
                     <div class="description-section">
                         <h4>AI Generated Column Description</h4>
                         <div class="form-group">
                             <label>Column Description:</label>
-                            <textarea id="columnDesc${currentColumnIndex}" rows="3" placeholder="Describe what this column represents...">${suggestedDescription}</textarea>
+                            <textarea id="columnDesc${currentColumnIndex}" rows="3"
+                                placeholder="Describe what this column represents..."
+                                onchange="autoSaveColumn('${columnName}')">${suggestedDescription}</textarea>
                         </div>
                         <button class="btn btn-secondary" onclick="reanalyzeWithDescription('${columnName}')">Update Description</button>
                     </div>
 
-                    <!-- TYPE CLASSIFICATION SECOND -->
+                    <!-- TYPE CLASSIFICATION SECTION WITH AUTO-SAVE -->
                     <div class="type-section" id="typeSection${currentColumnIndex}">
                         <h4>AI Column Type Classification</h4>
                         <div class="form-group">
                             <label>Column Type:</label>
-                            <select id="columnType${currentColumnIndex}">
+                            <select id="columnType${currentColumnIndex}" onchange="autoSaveColumn('${columnName}')">
                                 <option value="binary" ${suggestedType === 'binary' ? 'selected' : ''}>Binary</option>
                                 <option value="categorical" ${suggestedType === 'categorical' ? 'selected' : ''}>Categorical</option>
                                 <option value="ordinal" ${suggestedType === 'ordinal' ? 'selected' : ''}>Ordinal</option>
@@ -1530,11 +1570,8 @@
                             </select>
                         </div>
                     </div>
-
-                    <button class="btn" onclick="confirmCurrentColumn('${columnName}')">Save Column</button>
                 </div>
             `;
-
             document.getElementById('columnAnalysis').innerHTML = html;
         }
 
@@ -1700,6 +1737,57 @@
             .catch(error => {
                 alert('Error downloading file: ' + error.message);
             });
+        }
+
+        // New function for auto-saving column changes
+        function autoSaveColumn(columnName) {
+            const description = document.getElementById(`columnDesc${currentColumnIndex}`).value.trim();
+            const selectedType = document.getElementById(`columnType${currentColumnIndex}`).value;
+
+            // Save to local state immediately
+            columnAnalysisData[currentColumnIndex].description = description;
+            columnAnalysisData[currentColumnIndex].type = selectedType;
+
+            // Show brief save indicator
+            showAutoSaveIndicator();
+
+            console.log(`Auto-saved column "${columnName}": ${selectedType} - ${description.substring(0, 50)}...`);
+        }
+
+        // Function to show auto-save indicator
+        function showAutoSaveIndicator() {
+            // Remove existing indicator
+            const existingIndicator = document.querySelector('.auto-save-indicator');
+            if (existingIndicator) {
+                existingIndicator.remove();
+            }
+
+            // Create and show new indicator
+            const indicator = document.createElement('div');
+            indicator.className = 'auto-save-indicator';
+            indicator.innerHTML = '✅ Auto-saved';
+            indicator.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #27ae60;
+                color: white;
+                padding: 10px 15px;
+                border-radius: 5px;
+                font-size: 14px;
+                font-weight: 600;
+                z-index: 1000;
+                animation: fadeInOut 2s ease-in-out;
+            `;
+
+            document.body.appendChild(indicator);
+
+            // Remove indicator after 2 seconds
+            setTimeout(() => {
+                if (indicator.parentNode) {
+                    indicator.remove();
+                }
+            }, 2000);
         }
 
         // Initialize
