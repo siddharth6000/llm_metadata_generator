@@ -177,6 +177,15 @@ llm:
 - 16GB+ system RAM
 - CUDA-compatible GPU and drivers
 
+### Privacy Modal (NEW in v1.2.3)
+Version 1.2.3 introduces a mandatory privacy modal that appears on every page load.
+Features:
+
+Blocks application access until user accepts terms
+Explains external LLM data processing risks
+Lists prohibited data types (PII, PHI, financial data, etc.)
+Provides "Decline & Exit" option
+
 ## Supported File Types
 
 ### Main Dataset

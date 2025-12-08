@@ -1,10 +1,17 @@
-# LLM Metadata Generator v1.2.2
+# LLM Metadata Generator v1.2.3
 
-A comprehensive Python tool that uses Large Language Models to generate and analyze dataset metadata with semantic types and descriptions. This version introduces **enhanced generation capabilities**, improved module architecture, and advanced configuration management while maintaining all existing functionality.
+A comprehensive Python tool that uses Large Language Models to generate and analyze dataset metadata with semantic types and descriptions. This version introduces **enhanced privacy compliance** with a mandatory data privacy modal, ensuring users are fully informed about external LLM data processing before uploading sensitive information.
 
 ## Features
 
-### NEW in v1.2.2
+### NEW in v1.2.3
+- **Privacy Modal**: Mandatory privacy and data protection warning modal that appears on every page load
+- **Static Assets Folder**: New `/static` directory structure for CSS and JavaScript files
+- **Enhanced User Consent**: Explicit consent mechanism with checkbox validation before application access
+- **Clear Data Warnings**: Comprehensive information about external LLM processing and data transmission risks
+- **Professional Privacy UI**: Dedicated `privacy-modal.css` and `privacy-modal.js` files for privacy compliance
+
+### v1.2.2 Features
 - **Enhanced Generation Capabilities**: Advanced AI-powered metadata generation with improved semantic analysis
 - **Package Rename**: Complete migration from `llm_metadata_extractor` to `metadata_generator_package`
 - **Improved Module Architecture**: Enhanced code organization with comprehensive docstrings and better error handling
@@ -56,19 +63,27 @@ pip install -r requirements.txt
 
 ### Docker (Recommended)
 ```bash
-# Build the Docker image
-docker build -t metadata-generator .
+# Run the Docker container
+docker run -p 5000:5000 -v $(pwd)/config.yaml:/app/config.yaml metadata-generator
 
-# Run the container
-docker run -p 5000:5000 metadata-generator
-
-# Run with Docker Compose
-docker-compose up
-
-# Open browser to http://localhost:5000
+# Access the application
+# http://localhost:5000
 ```
 
-**Note**: See [SETUP.md](SETUP.md) for configuration setup instructions.
+### Manual Installation
+```bash
+# Install requirements
+pip install -r requirements.txt
+
+# Run the web interface
+python app.py
+
+# Or use the CLI
+python meta_data_ex_api.py --file your_dataset.csv
+```
+
+### Configuration
+Edit `config.yaml` to configure LLM provider, database, and system settings. See [SETUP.md](SETUP.md) for detailed configuration instructions.
 
 ## File Structure
 
@@ -86,12 +101,15 @@ docker-compose up
 ├── dqv_export.py                       # DQV export module
 ├── config.yaml                         # Configuration file
 ├── requirements.txt                    # Python dependencies
+├── static/                             # NEW in v1.2.3
+│   ├── privacy-modal.css               # Privacy modal styles
+│   └── privacy-modal.js                # Privacy modal logic
 ├── templates/
 │   └── index.html                      # Web interface template
 ├── metadata_generator_package/
 │   ├── __init__.py                     # Version information
 │   └── local_server/
-│       └── llm_server_ms_7b.py       # Local Mistral 7B server
+│       └── llm_server_ms_7b.py        # Local Mistral 7B server
 ├── examples/                           # Sample datasets and outputs
 │   ├── README.md                      # Examples documentation
 │   ├── IUNG2.csv                      # Sample dataset
@@ -103,35 +121,6 @@ docker-compose up
 └── README.md                           # This file
 ```
 
-## Configuration
-
-### config.yaml Structure
-```yaml
-# LLM Provider Configuration
-llm:
-  provider: "openai"  # or "local"
-  openai:
-    api_key: "your-openai-api-key"
-    model: "gpt-4"
-  local:
-    api_url: "http://localhost:8000/generate"
-
-# Database Configuration
-database:
-  enabled: true
-  provider: "supabase"
-  supabase:
-    url: "your-supabase-project-url"
-    key: "your-supabase-anon-key"
-    auto_save: true
-
-# System Configuration
-app:
-  max_file_size_mb: 30
-  debug: false
-  session_cleanup_hours: 1
-```
-
 ## Output Formats
 
 ### JSON Format
@@ -140,8 +129,8 @@ Standard structured metadata format for most applications:
 {
     "dataset_name": "Sample Dataset",
     "dataset_description": "Dataset description",
-    "generated_timestamp": "2025-08-26T10:30:00Z",
-    "tool_version": "1.2.2",
+    "generated_timestamp": "2025-12-08T10:30:00Z",
+    "tool_version": "1.2.3",
     "columns": [
         {
             "name": "age",
@@ -192,6 +181,10 @@ Complete data packages including:
 - `GET /cloud_dataset/<file_id>`: Get specific dataset metadata
 - `DELETE /cloud_dataset/<file_id>`: Delete dataset from cloud
 
+### Static Files (NEW in v1.2.3)
+- `GET /static/privacy-modal.css`: Privacy modal stylesheet
+- `GET /static/privacy-modal.js`: Privacy modal JavaScript
+
 ## Examples and Sample Data
 
 The `examples/` directory contains sample datasets and outputs:
@@ -221,4 +214,4 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and improveme
 
 ---
 
-**Happy metadata generation with v1.2.2!** 🚀
+**Happy metadata generation with v1.2.3!** 🚀
