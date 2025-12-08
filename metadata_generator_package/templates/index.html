@@ -676,8 +676,81 @@
             line-height: 1.2;
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='privacy-modal.css') }}">
 </head>
 <body>
+    <!-- Data Privacy Warning Modal -->
+    <div class="privacy-modal-overlay" id="privacyModal">
+        <div class="privacy-modal-content">
+            <div class="privacy-modal-header">
+                <div class="privacy-modal-header-icon">⚠️</div>
+                <div class="privacy-modal-header-text">
+                    <h2>Data Privacy Notice</h2>
+                    <p>External LLM Service Usage Warning</p>
+                </div>
+            </div>
+
+            <div class="privacy-modal-body">
+                <div class="privacy-warning-notice">
+                    <h3>🔒 Important: Research Project Notice</h3>
+                    <p>
+                        This application is a <strong>research project</strong> that utilizes external Large Language Model (LLM) services
+                        to analyze and annotate your datasets. Your data will be transmitted to third-party AI services for processing.
+                    </p>
+                </div>
+
+                <div class="privacy-info-section">
+                    <h4>📊 What This Tool Does</h4>
+                    <ul>
+                        <li>Analyzes your uploaded CSV dataset using AI</li>
+                        <li>Generates metadata descriptions for columns and datasets</li>
+                        <li>Classifies columns based on semantic types</li>
+                        <li>Sends your data to external LLM providers (OpenAI, CoPilot, or custom endpoints)</li>
+                    </ul>
+                </div>
+
+                <div class="privacy-info-section">
+                    <h4>🚫 Do NOT Upload</h4>
+                    <ul>
+                        <li><strong>Personally Identifiable Information (PII)</strong> - names, addresses, phone numbers, email addresses</li>
+                        <li><strong>Protected Health Information (PHI)</strong> - medical records, health data</li>
+                        <li><strong>Financial Data</strong> - credit cards, bank accounts, transaction details</li>
+                        <li><strong>Confidential Business Data</strong> - trade secrets, proprietary information</li>
+                        <li><strong>Any Sensitive or Regulated Data</strong> - data subject to GDPR, HIPAA, or other privacy regulations</li>
+                    </ul>
+                </div>
+
+                <div class="privacy-info-section">
+                    <h4>🔐 Privacy & Security Considerations</h4>
+                    <ul>
+                        <li>Data is transmitted to external LLM API endpoints</li>
+                        <li>External providers may retain data according to their policies</li>
+                        <li>This is a research tool, not a production-grade system</li>
+                        <li>No guarantees of data security or privacy compliance</li>
+                        <li>You are responsible for ensuring compliance with applicable data protection laws</li>
+                    </ul>
+                </div>
+
+                <div class="privacy-acceptance-section">
+                    <div class="privacy-acceptance-checkbox" onclick="togglePrivacyAcceptance()">
+                        <input type="checkbox" id="privacyAcceptTerms" onchange="updatePrivacyAcceptButton()">
+                        <label for="privacyAcceptTerms">
+                            <strong>I understand and accept the following:</strong><br>
+                            I confirm that the dataset I upload contains <strong>NO sensitive, confidential, or personally identifiable information</strong>.
+                            I acknowledge this is a research project using external LLM services, and I accept full responsibility for the data I choose to upload.
+                            I understand that data may be transmitted to and processed by third-party AI service providers.
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="privacy-modal-footer">
+                <button class="btn privacy-btn-decline" onclick="declinePrivacyTerms()">Decline & Exit</button>
+                <button class="btn privacy-btn-accept" id="privacyAcceptBtn" onclick="acceptPrivacyTerms()" disabled>Accept & Continue</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>Dataset Metadata Annotation Tool</h1>
@@ -1793,5 +1866,6 @@
         // Initialize
         document.getElementById('nextBtn').disabled = true;
     </script>
+    <script src="{{ url_for('static', filename='privacy-modal.js') }}"></script>
 </body>
 </html>
