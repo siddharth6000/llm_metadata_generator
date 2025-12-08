@@ -2,6 +2,74 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.3
+
+### Added
+- **Mandatory Privacy Modal**: Comprehensive data privacy warning modal that appears on every page load
+- **Static Assets Folder**: New `/static` directory structure for better organization of CSS and JavaScript files
+- **Privacy Modal CSS**: Dedicated stylesheet (`static/privacy-modal.css`) with professional styling and animations
+- **Privacy Modal JavaScript**: Comprehensive modal logic (`static/privacy-modal.js`) with consent tracking and application flow control
+- **Enhanced User Warnings**: Multi-section privacy notice covering data processing, sensitive data types, and user responsibilities
+- **Explicit Consent Mechanism**: Checkbox-based acceptance system with disabled "Accept" button until terms are reviewed
+- **Clear Opt-Out Path**: "Decline & Exit" functionality that redirects users away from the application
+- **Comprehensive Disclosure**: Detailed information about external LLM services, data transmission, and third-party retention policies
+
+### Privacy & Compliance Features
+- **Full-Screen Blocking Modal**: Cannot access application until privacy terms are explicitly accepted
+- **No Persistent Storage**: Modal shows on every page load without using cookies or localStorage for maximum transparency
+- **Clear Warning Sections**: 
+  - Research project notice explaining external LLM usage
+  - Detailed list of data types that should NEVER be uploaded (PII, PHI, financial data, etc.)
+  - Privacy and security considerations with clear "no guarantees" language
+  - User responsibility acknowledgment for data protection compliance
+- **Visual Indicators**: Color-coded sections (warning yellow, danger red) for critical information
+- **Professional Styling**: Modern, accessible design with smooth animations and clear visual hierarchy
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
+
+### Template & Structure Changes
+- **Updated `templates/index.html`**: 
+  - Integrated privacy modal HTML structure
+  - Added CSS link to `static/privacy-modal.css`
+  - Added JavaScript link to `static/privacy-modal.js`
+  - Modal appears at the top of the body before main content
+- **Static File Organization**: Separated static assets into dedicated folder following Flask best practices
+- **Enhanced HTML Structure**: Privacy modal overlay with proper z-index stacking and modal content isolation
+
+### Privacy Modal Behavior
+- **Automatic Display**: Modal automatically shows when page loads
+- **Checkbox Validation**: "Accept & Continue" button remains disabled until checkbox is checked
+- **Decline Handling**: "Decline & Exit" redirects to `about:blank` with alert message
+- **Body Scroll Lock**: Prevents scrolling when modal is active to ensure user reads terms
+- **Accept Flow**: On acceptance, modal closes and normal application functionality is enabled
+
+### User Experience Improvements
+- **Clear Communication**: Explicit warnings about external data processing and potential risks
+- **Informed Consent**: Users must actively acknowledge understanding before proceeding
+- **Professional Presentation**: High-quality design maintains trust while delivering critical information
+- **Accessibility**: Keyboard navigation support and semantic HTML structure
+- **Mobile Optimization**: Responsive design ensures readability on all screen sizes
+
+### Technical Implementation
+- **JavaScript Module Pattern**: Privacy modal logic encapsulated in IIFE for namespace protection
+- **Event-Driven Architecture**: Proper event listener registration with DOMContentLoaded handling
+- **CSS Animations**: Smooth fade-in and slide-up animations for professional feel
+- **No External Dependencies**: Pure JavaScript and CSS implementation without third-party libraries
+- **Browser Compatibility**: Works across modern browsers (Chrome, Firefox, Safari, Edge)
+
+### Documentation Updates
+- **Enhanced README**: Added comprehensive privacy section explaining modal functionality
+- **Data Protection Guidelines**: Clear list of data types that should never be uploaded
+- **Privacy Modal Documentation**: Detailed explanation of modal behavior and user flow
+- **Security Considerations**: Expanded security section with best practices and warnings
+- **Updated Screenshots**: (To be added) Showing privacy modal in action
+
+### Code Quality
+- **Modular Architecture**: Privacy modal separated into dedicated CSS and JS files
+- **Clean Code**: Well-commented and maintainable JavaScript implementation
+- **CSS Organization**: Logical grouping of styles with clear section comments
+- **Consistent Styling**: Matches existing application design language
+- **Error Handling**: Graceful handling of edge cases and browser compatibility issues
+
 ## v1.2.2
 
 ### Added
